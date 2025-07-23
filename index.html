@@ -130,11 +130,8 @@
         let unsubscribeMessages = null; 
 
         // --- 4. AUTHENTICATION ---
-        
-        // This is the single source of truth for the user's auth state.
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                // User is authenticated, app is usable.
                 userId = user.uid;
                 userIdDisplay.textContent = `User ID: ${userId}`;
                 messageInput.disabled = false;
@@ -143,7 +140,6 @@
                 messagesCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'messages');
                 listenForMessages();
             } else {
-                // User is not authenticated. App is unusable.
                 userId = null;
                 messageInput.disabled = true;
                 submitButton.disabled = true;
@@ -151,37 +147,37 @@
                     unsubscribeMessages();
                     unsubscribeMessages = null;
                 }
-                // The signInUser function will handle displaying the error message.
             }
         });
         
         async function signInUser() {
             userIdDisplay.textContent = 'Authenticating...';
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+
+            // Try custom token first if available
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                try {
                     await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
+                    // If successful, onAuthStateChanged will handle the rest.
+                    return; 
+                } catch (error) {
+                    console.error("Custom token sign-in failed:", error);
+                    // Don't show an error yet, proceed to anonymous sign-in as a fallback.
                 }
+            }
+
+            // If custom token failed or wasn't available, try anonymous sign-in.
+            try {
+                console.log("Attempting anonymous sign-in...");
+                await signInAnonymously(auth);
+                // If successful, onAuthStateChanged will handle the rest.
             } catch (error) {
-                console.error("Primary auth attempt failed:", error);
-                if (error.code === 'auth/custom-token-mismatch') {
-                    console.log("Custom token failed, trying anonymous fallback.");
-                    try {
-                        await signInAnonymously(auth);
-                    } catch (anonError) {
-                        console.error("Anonymous fallback also failed:", anonError);
-                        handleAuthError(anonError); // Handle the final, critical error.
-                    }
-                } else {
-                    handleAuthError(error);
-                }
+                console.error("Anonymous sign-in also failed:", error);
+                handleAuthError(error); // This is the final failure point.
             }
         }
 
         function handleAuthError(err) {
             let errorMessage = '';
-            // Handle the most common and critical error first.
             if (err.code === 'auth/operation-not-allowed' || err.code === 'auth/admin-restricted-operation') {
                 errorMessage = `
                     <p class="text-red-500 font-semibold">প্রমাণীকরণ ব্যর্থ হয়েছে।</p>
@@ -199,10 +195,7 @@
         // --- 5. FIRESTORE & CHAT LOGIC ---
         function listenForMessages() {
             if (!messagesCollectionRef) return;
-            
-            if (unsubscribeMessages) {
-                unsubscribeMessages();
-            }
+            if (unsubscribeMessages) unsubscribeMessages();
 
             const q = query(messagesCollectionRef, orderBy("timestamp"));
             
@@ -243,7 +236,7 @@
             } else {
                 messageElement = `
                     <div class="bg-indigo-500 text-white p-2 rounded-full h-8 w-8 flex-shrink-0 flex items-center justify-center text-sm font-bold">AI</div>
-                    <div class="bg-indigo-100 text-slate-800 p-3 rounded-lg max-w-xs md:max-w-md">
+                <div class="bg-indigo-100 text-slate-800 p-3 rounded-lg max-w-xs md:max-w-md">
                         <p>${text}</p>
                     </div>
                 `;
@@ -290,14 +283,21 @@
 
             const fullPrompt = `You are 'কবিতার খাতা AI', a friendly and knowledgeable AI assistant from Bangladesh who loves Bengali poetry, literature, and culture. Your responses should be in Bengali. Be helpful and engaging. User's query: "${prompt}"`;
 
+            const geminiApiKey = "AIzaSyBTDtJhQe9Ts1Zn8gBKqMKJ6idQ-rEOUgw"; 
+
+            if (!geminiApiKey) {
+                displayMessage('bot', 'Google AI API কী সেট করা নেই। কোডটি স্থানীয়ভাবে (locally) চালানোর জন্য, অনুগ্রহ করে আপনার নিজের API কী যোগ করুন।');
+                typingIndicator.classList.add('hidden');
+                return;
+            }
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
             const payload = {
                 contents: [{
                     role: "user",
                     parts: [{ text: fullPrompt }]
                 }]
             };
-            const apiKey = ""; 
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
 
             try {
                 const response = await fetch(apiUrl, {
@@ -307,7 +307,9 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`API request failed with status ${response.status}`);
+                    const errorData = await response.json();
+                    console.error("API Error Response:", errorData);
+                    throw new Error(`API request failed with status ${response.status}.`);
                 }
                 
                 const result = await response.json();
