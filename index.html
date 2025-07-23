@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>কবিতার খাতা AI</title>
+    
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts for Bengali script -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Apply Bengali font to the entire application */
+        body {
+            font-family: 'Noto Sans Bengali', sans-serif;
+        }
+        /* Custom scrollbar for a cleaner look */
+        #chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+        #chat-messages::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        #chat-messages::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 10px;
+        }
+        #chat-messages::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 flex items-center justify-center min-h-screen">
+
+    <div id="app-container" class="w-full max-w-2xl h-[95vh] md:h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col p-4 md:p-6">
+        
+        <!-- Header Section -->
+        <header class="border-b border-slate-200 pb-4 mb-4">
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-800 text-center">কবিতার খাতা AI 🖋️</h1>
+            <div id="user-id-display" class="text-center text-xs text-slate-400 mt-2">Connecting...</div>
+        </header>
+
+        <!-- Chat Messages Area -->
+        <main id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-50 rounded-lg">
+            <!-- Initial bot message -->
+            <div class="flex items-start gap-3">
+                <div class="bg-indigo-500 text-white p-2 rounded-full h-8 w-8 flex-shrink-0 flex items-center justify-center text-sm font-bold">AI</div>
+                <div class="bg-indigo-100 text-slate-800 p-3 rounded-lg max-w-xs md:max-w-md">
+                    <p>নমস্কার! আমি কবিতার খাতা AI। আমি এখানে আপনাকে কবিতা, সাহিত্য বা যেকোনো বিষয়ে সাহায্য করার জন্য আছি। আপনার প্রশ্নটি করুন।</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Typing Indicator -->
+        <div id="typing-indicator" class="hidden flex items-center gap-3 p-4">
+            <div class="bg-indigo-500 text-white p-2 rounded-full h-8 w-8 flex-shrink-0 flex items-center justify-center text-sm font-bold">AI</div>
+            <div class="flex items-center gap-1">
+                <span class="h-2 w-2 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                <span class="h-2 w-2 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                <span class="h-2 w-2 bg-slate-400 rounded-full animate-bounce"></span>
+            </div>
+        </div>
+        
+        <!-- Message Input Form -->
+        <footer class="mt-4">
+            <form id="message-form" class="flex items-center gap-2 md:gap-4">
+                <input 
+                    type="text" 
+                    id="message-input"
+                    placeholder="আপনার বার্তা লিখুন..."
+                    autocomplete="off"
+                    class="flex-1 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition duration-300"
+                    disabled 
+                >
+                <button 
+                    type="submit"
+                    id="submit-button"
+                    class="bg-indigo-600 text-white font-bold py-3 px-5 rounded-lg hover:bg-indigo-700 active:scale-95 transition duration-300 flex items-center gap-2 disabled:bg-slate-400 disabled:cursor-not-allowed"
+                    disabled
+                >
+                    <span>পাঠান</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-send-fill" viewBox="0 0 16 16">
+                      <path d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855H.766l-.452.18a.5.5 0 0 0-.082.887l.41.26.001.002 4.995 3.178 3.178 4.995.002.002.26.41a.5.5 0 0 0 .886-.083l6-15Zm-1.833 1.89L6.637 10.07l-.215-.338a.5.5 0 0 0-.154-.154l-.338-.215 7.494-7.494 1.178-.471-.47 1.178Z"/>
+                    </svg>
+                </button>
+            </form>
+        </footer>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        // Import necessary Firebase functions
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, onSnapshot, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- 1. CONFIGURATION ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCbZD1X2iXESuwvbFif3m9PZ7xK-bsZ1uc",
+            authDomain: "kobitar-khata-oe1bo.firebaseapp.com",
+            databaseURL: "https://kobitar-khata-oe1bo-default-rtdb.firebaseio.com",
+            projectId: "kobitar-khata-oe1bo",
+            storageBucket: "kobitar-khata-oe1bo.firebasestorage.app",
+            messagingSenderId: "901122182466",
+            appId: "1:901122182466:web:ce984ed8d16cf2ce948cdb",
+            measurementId: "G-RR98NQ9XZZ"
+        };
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-chatbot-app';
+
+        // --- 2. INITIALIZATION ---
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // --- 3. DOM ELEMENTS ---
+        const chatMessages = document.getElementById('chat-messages');
+        const messageForm = document.getElementById('message-form');
+        const messageInput = document.getElementById('message-input');
+        const submitButton = document.getElementById('submit-button');
+        const typingIndicator = document.getElementById('typing-indicator');
+        const userIdDisplay = document.getElementById('user-id-display');
+
+        let userId = null;
+        let messagesCollectionRef = null;
+        let unsubscribeMessages = null; 
+
+        // --- 4. AUTHENTICATION ---
+        
+        // This is the single source of truth for the user's auth state.
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // User is authenticated, app is usable.
+                userId = user.uid;
+                userIdDisplay.textContent = `User ID: ${userId}`;
+                messageInput.disabled = false;
+                submitButton.disabled = false;
+                
+                messagesCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'messages');
+                listenForMessages();
+            } else {
+                // User is not authenticated. App is unusable.
+                userId = null;
+                messageInput.disabled = true;
+                submitButton.disabled = true;
+                if (unsubscribeMessages) {
+                    unsubscribeMessages();
+                    unsubscribeMessages = null;
+                }
+                // The signInUser function will handle displaying the error message.
+            }
+        });
+        
+        async function signInUser() {
+            userIdDisplay.textContent = 'Authenticating...';
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Primary auth attempt failed:", error);
+                if (error.code === 'auth/custom-token-mismatch') {
+                    console.log("Custom token failed, trying anonymous fallback.");
+                    try {
+                        await signInAnonymously(auth);
+                    } catch (anonError) {
+                        console.error("Anonymous fallback also failed:", anonError);
+                        handleAuthError(anonError); // Handle the final, critical error.
+                    }
+                } else {
+                    handleAuthError(error);
+                }
+            }
+        }
+
+        function handleAuthError(err) {
+            let errorMessage = '';
+            // Handle the most common and critical error first.
+            if (err.code === 'auth/operation-not-allowed' || err.code === 'auth/admin-restricted-operation') {
+                errorMessage = `
+                    <p class="text-red-500 font-semibold">প্রমাণীকরণ ব্যর্থ হয়েছে।</p>
+                    <p class="text-slate-600 text-xs mt-1">এই অ্যাপটি ব্যবহার করতে, অনুগ্রহ করে আপনার Firebase প্রজেক্টে যান, Authentication -> Sign-in method-এ গিয়ে 'Anonymous' সাইন-ইন পদ্ধতিটি সক্রিয় করুন।</p>
+                `;
+            } else {
+                 errorMessage = `
+                    <p class="text-red-500 font-semibold">প্রমাণীকরণ সম্ভব হচ্ছে না।</p>
+                    <p class="text-slate-600 text-xs mt-1">অনুগ্রহ করে আপনার ইন্টারনেট সংযোগ এবং Firebase কনফিগারেশন পরীক্ষা করুন। বিস্তারিত জানতে কনসোল দেখুন।</p>
+                `;
+            }
+            userIdDisplay.innerHTML = errorMessage;
+        }
+
+        // --- 5. FIRESTORE & CHAT LOGIC ---
+        function listenForMessages() {
+            if (!messagesCollectionRef) return;
+            
+            if (unsubscribeMessages) {
+                unsubscribeMessages();
+            }
+
+            const q = query(messagesCollectionRef, orderBy("timestamp"));
+            
+            unsubscribeMessages = onSnapshot(q, (snapshot) => {
+                const existingMessages = chatMessages.querySelectorAll('.dynamic-message');
+                existingMessages.forEach(msg => msg.remove());
+
+                snapshot.docs.forEach(doc => {
+                    const message = doc.data();
+                    displayMessage(message.sender, message.text);
+                });
+                
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }, (error) => {
+                console.error("Error fetching messages: ", error);
+                if (error.code === 'permission-denied' || error.code === 'missing-or-insufficient-permissions') {
+                    if (!auth.currentUser) {
+                         displayMessage('bot', 'প্রমাণীকরণ ব্যর্থ হয়েছে। বার্তা লোড করা সম্ভব নয়। অনুগ্রহ করে পৃষ্ঠার শীর্ষে থাকা নির্দেশাবলী অনুসরণ করুন।');
+                    } else {
+                        displayMessage('bot', 'ডাটাবেস অনুমতিতে সমস্যা হয়েছে। আপনার Firestore নিরাপত্তা নিয়মাবলী (Security Rules) পরীক্ষা করুন।');
+                    }
+                }
+            });
+        }
+
+        function displayMessage(sender, text) {
+            const messageWrapper = document.createElement('div');
+            messageWrapper.className = `flex items-start gap-3 dynamic-message ${sender === 'user' ? 'justify-end' : ''}`;
+            
+            let messageElement;
+            if (sender === 'user') {
+                messageElement = `
+                    <div class="bg-blue-500 text-white p-3 rounded-lg max-w-xs md:max-w-md">
+                        <p>${text}</p>
+                    </div>
+                    <div class="bg-blue-500 text-white p-2 rounded-full h-8 w-8 flex-shrink-0 flex items-center justify-center text-sm font-bold">You</div>
+                `;
+            } else {
+                messageElement = `
+                    <div class="bg-indigo-500 text-white p-2 rounded-full h-8 w-8 flex-shrink-0 flex items-center justify-center text-sm font-bold">AI</div>
+                    <div class="bg-indigo-100 text-slate-800 p-3 rounded-lg max-w-xs md:max-w-md">
+                        <p>${text}</p>
+                    </div>
+                `;
+            }
+            messageWrapper.innerHTML = messageElement;
+            chatMessages.appendChild(messageWrapper);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        messageForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const messageText = messageInput.value.trim();
+
+            if (messageText && userId && messagesCollectionRef) {
+                messageInput.value = '';
+                
+                try {
+                    await addDoc(messagesCollectionRef, {
+                        text: messageText,
+                        sender: 'user',
+                        timestamp: serverTimestamp()
+                    });
+                    
+                    getAIResponse(messageText);
+                } catch (error) {
+                    console.error("Error sending message: ", error);
+                     if (error.code === 'permission-denied' || error.code === 'missing-or-insufficient-permissions') {
+                        if (!auth.currentUser) {
+                            displayMessage('bot', 'প্রমাণীকরণ ব্যর্থ হয়েছে। বার্তা পাঠানো সম্ভব নয়।');
+                        } else {
+                            displayMessage('bot', 'বার্তা পাঠানো সম্ভব হচ্ছে না। আপনার Firestore নিরাপত্তা নিয়মাবলী (Security Rules) পরীক্ষা করুন।');
+                        }
+                    } else {
+                        displayMessage('bot', 'দুঃখিত, আপনার বার্তা পাঠাতে একটি সমস্যা হয়েছে।');
+                    }
+                }
+            }
+        });
+
+        // --- 6. GEMINI AI INTEGRATION ---
+        async function getAIResponse(prompt) {
+            typingIndicator.classList.remove('hidden');
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            const fullPrompt = `You are 'কবিতার খাতা AI', a friendly and knowledgeable AI assistant from Bangladesh who loves Bengali poetry, literature, and culture. Your responses should be in Bengali. Be helpful and engaging. User's query: "${prompt}"`;
+
+            const payload = {
+                contents: [{
+                    role: "user",
+                    parts: [{ text: fullPrompt }]
+                }]
+            };
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API request failed with status ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                let botResponse = "দুঃখিত, আমি এই মুহূর্তে উত্তর দিতে পারছি না।";
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    botResponse = result.candidates[0].content.parts[0].text;
+                }
+                
+                await addDoc(messagesCollectionRef, {
+                    text: botResponse,
+                    sender: 'bot',
+                    timestamp: serverTimestamp()
+                });
+
+            } catch (error) {
+                console.error("Error getting AI response:", error);
+                displayMessage('bot', 'দুঃখিত, একটি প্রযুক্তিগত সমস্যা হয়েছে। অনুগ্রহ করে কিছুক্ষণ পর আবার চেষ্টা করুন।');
+            } finally {
+                typingIndicator.classList.add('hidden');
+            }
+        }
+
+        // Initial sign-in attempt when the script loads
+        signInUser();
+    </script>
+</body>
+</html>
