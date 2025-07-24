@@ -5,36 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>মঞ্জুরুল AI</title>
     
+    <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     
+    <!-- Google Fonts for Bengali script -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;700&display=swap" rel="stylesheet">
     
     <style>
-        /* Apply Bengali font to the entire application */
-        body {
-            font-family: 'Noto Sans Bengali', sans-serif;
-        }
-        /* Custom scrollbar for a cleaner look */
-        #chat-messages::-webkit-scrollbar {
-            width: 6px;
-        }
-        #chat-messages::-webkit-scrollbar-track {
-            background: #f1f5f9;
-        }
-        #chat-messages::-webkit-scrollbar-thumb {
-            background: #94a3b8;
-            border-radius: 10px;
-        }
-        #chat-messages::-webkit-scrollbar-thumb:hover {
-            background: #475569;
-        }
+        body { font-family: 'Noto Sans Bengali', sans-serif; }
+        #chat-messages::-webkit-scrollbar { width: 6px; }
+        #chat-messages::-webkit-scrollbar-track { background: #f1f5f9; }
+        #chat-messages::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
+        #chat-messages::-webkit-scrollbar-thumb:hover { background: #475569; }
     </style>
 </head>
-<body class="bg-slate-100 flex items-center justify-center min-h-screen">
+<body class="bg-slate-100 flex items-center justify-center min-h-screen p-4">
 
-    <div id="app-container" class="w-full max-w-2xl h-[95vh] md:h-[90vh] bg-white rounded-2xl shadow-2xl flex flex-col p-4 md:p-6">
+    <!-- Login/Registration Screen (Initially visible) -->
+    <div id="login-container" class="w-full max-w-md bg-white p-8 rounded-2xl shadow-2xl text-center">
+        <h1 class="text-3xl font-bold text-slate-800 mb-2">স্বাগতম!</h1>
+        <p class="text-slate-500 mb-6">শুরু করার জন্য আপনার তথ্য দিন</p>
+        <form id="login-form">
+            <div class="space-y-4">
+                <input type="text" id="name-input" placeholder="আপনার নাম" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition" required>
+                <input type="tel" id="mobile-input" placeholder="আপনার মোবাইল নম্বর" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition" required>
+            </div>
+            <button type="submit" id="login-button" class="w-full bg-indigo-600 text-white font-bold py-3 px-5 rounded-lg hover:bg-indigo-700 active:scale-95 transition duration-300 mt-6 disabled:bg-slate-400">
+                চ্যাট শুরু করুন
+            </button>
+        </form>
+        <p id="auth-status" class="text-xs text-slate-400 mt-4">Connecting...</p>
+    </div>
+
+    <!-- Chat Screen (Initially hidden) -->
+    <div id="app-container" class="hidden w-full max-w-2xl h-[95vh] md:h-[90vh] bg-white rounded-2xl shadow-2xl flex-col p-4 md:p-6">
         
         <header class="border-b border-slate-200 pb-4 mb-4">
             <h1 class="text-2xl md:text-3xl font-bold text-slate-800 text-center">মঞ্জুরুল AI 🤖</h1>
@@ -70,39 +76,23 @@
         <footer class="mt-4">
             <form id="message-form" class="flex items-center gap-2 md:gap-4">
                  <label for="file-input" class="cursor-pointer p-3 rounded-lg bg-slate-200 hover:bg-slate-300 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="text-slate-600" viewBox="0 0 16 16">
-                        <path d="M4.502 9.5a3.5 3.5 0 1 1 7 0v-1a2.5 2.5 0 0 0-5 0v1a.5.5 0 0 1-1 0v-1a3.5 3.5 0 1 1 7 0v5.5a.5.5 0 0 1-1 0V9.5a2.5 2.5 0 0 0-5 0v5.5a.5.5 0 0 1-1 0z"/>
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="text-slate-600" viewBox="0 0 16 16"><path d="M4.502 9.5a3.5 3.5 0 1 1 7 0v-1a2.5 2.5 0 0 0-5 0v1a.5.5 0 0 1-1 0v-1a3.5 3.5 0 1 1 7 0v5.5a.5.5 0 0 1-1 0V9.5a2.5 2.5 0 0 0-5 0v5.5a.5.5 0 0 1-1 0z"/></svg>
                     <input type="file" id="file-input" class="hidden" accept="image/*">
                 </label>
-                <input 
-                    type="text" 
-                    id="message-input"
-                    placeholder="আপনার প্রশ্ন লিখুন... অথবা '/image' দিয়ে ছবি বানান"
-                    autocomplete="off"
-                    class="flex-1 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition duration-300"
-                    disabled 
-                >
-                <button 
-                    type="submit"
-                    id="submit-button"
-                    class="bg-indigo-600 text-white font-bold py-3 px-5 rounded-lg hover:bg-indigo-700 active:scale-95 transition duration-300 flex items-center gap-2 disabled:bg-slate-400 disabled:cursor-not-allowed"
-                    disabled
-                >
+                <input type="text" id="message-input" placeholder="আপনার প্রশ্ন লিখুন... অথবা '/image' দিয়ে ছবি বানান" autocomplete="off" class="flex-1 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
+                <button type="submit" id="submit-button" class="bg-indigo-600 text-white font-bold py-3 px-5 rounded-lg hover:bg-indigo-700 active:scale-95 transition duration-300 flex items-center gap-2">
                     <span>পাঠান</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-send-fill" viewBox="0 0 16 16">
-                      <path d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855H.766l-.452.18a.5.5 0 0 0-.082.887l.41.26.001.002 4.995 3.178 3.178 4.995.002.002.26.41a.5.5 0 0 0 .886-.083l6-15Zm-1.833 1.89L6.637 10.07l-.215-.338a.5.5 0 0 0-.154-.154l-.338-.215 7.494-7.494 1.178-.471-.47 1.178Z"/>
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-send-fill" viewBox="0 0 16 16"><path d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855H.766l-.452.18a.5.5 0 0 0-.082.887l.41.26.001.002 4.995 3.178 3.178 4.995.002.002.26.41a.5.5 0 0 0 .886-.083l6-15Zm-1.833 1.89L6.637 10.07l-.215-.338a.5.5 0 0 0-.154-.154l-.338-.215 7.494-7.494 1.178-.471-.47 1.178Z"/></svg>
                 </button>
             </form>
         </footer>
     </div>
 
+    <!-- Firebase SDK -->
     <script type="module">
-        // Import necessary Firebase functions
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, onSnapshot, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, onSnapshot, orderBy, serverTimestamp, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- 1. CONFIGURATION ---
         const firebaseConfig = {
@@ -115,7 +105,6 @@
             appId: "1:901122182466:web:ce984ed8d16cf2ce948cdb",
             measurementId: "G-RR98NQ9XZZ"
         };
-
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-chatbot-app';
 
         // --- 2. INITIALIZATION ---
@@ -124,16 +113,23 @@
         const db = getFirestore(app);
 
         // --- 3. DOM ELEMENTS ---
+        const loginContainer = document.getElementById('login-container');
+        const loginForm = document.getElementById('login-form');
+        const nameInput = document.getElementById('name-input');
+        const mobileInput = document.getElementById('mobile-input');
+        const loginButton = document.getElementById('login-button');
+        const authStatus = document.getElementById('auth-status');
+        
+        const appContainer = document.getElementById('app-container');
         const chatMessages = document.getElementById('chat-messages');
         const messageForm = document.getElementById('message-form');
         const messageInput = document.getElementById('message-input');
-        const submitButton = document.getElementById('submit-button');
-        const typingIndicator = document.getElementById('typing-indicator');
         const userIdDisplay = document.getElementById('user-id-display');
         const fileInput = document.getElementById('file-input');
         const imagePreviewContainer = document.getElementById('image-preview-container');
         const imagePreview = document.getElementById('image-preview');
         const removeImageBtn = document.getElementById('remove-image-btn');
+        const typingIndicator = document.getElementById('typing-indicator');
 
         let userId = null;
         let messagesCollectionRef = null;
@@ -141,62 +137,82 @@
         let selectedFileBase64 = null;
         let selectedFileMimeType = null;
 
-        // --- 4. AUTHENTICATION ---
-        onAuthStateChanged(auth, (user) => {
+        // --- 4. AUTHENTICATION & USER PROFILE LOGIC ---
+        onAuthStateChanged(auth, async (user) => {
             if (user) {
                 userId = user.uid;
-                // **FIX:** Shorten the displayed User ID for a cleaner look
-                const shortId = `${userId.substring(0, 4)}...${userId.substring(userId.length - 4)}`;
-                userIdDisplay.textContent = `ইউজার আইডি: ${shortId}`;
+                authStatus.textContent = 'Authenticated. Checking profile...';
                 
-                messageInput.disabled = false;
-                submitButton.disabled = false;
-                
-                messagesCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'messages');
-                listenForMessages();
-            } else {
-                userId = null;
-                messageInput.disabled = true;
-                submitButton.disabled = true;
-                if (unsubscribeMessages) {
-                    unsubscribeMessages();
-                    unsubscribeMessages = null;
+                // Check if user profile already exists
+                const userProfileRef = doc(db, 'artifacts', appId, 'users', userId);
+                const docSnap = await getDoc(userProfileRef);
+
+                if (docSnap.exists()) {
+                    // User is returning, go straight to chat
+                    showChatScreen(docSnap.data().name);
+                } else {
+                    // New user, show login screen
+                    loginContainer.classList.remove('hidden');
+                    appContainer.classList.add('hidden');
+                    authStatus.textContent = 'Please provide your details.';
                 }
+            } else {
+                // Not authenticated, try to sign in
+                authStatus.textContent = 'Authenticating...';
+                signInUser();
             }
         });
         
         async function signInUser() {
-            userIdDisplay.textContent = 'Authenticating...';
             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                 try {
                     await signInWithCustomToken(auth, __initial_auth_token);
                     return; 
-                } catch (error) {
-                    console.error("Custom token sign-in failed:", error);
-                }
+                } catch (error) { console.error("Custom token sign-in failed:", error); }
             }
             try {
                 await signInAnonymously(auth);
             } catch (error) {
-                console.error("Anonymous sign-in also failed:", error);
-                handleAuthError(error);
+                console.error("Anonymous sign-in failed:", error);
+                authStatus.innerHTML = `<p class="text-red-500">Authentication Failed. Please enable Anonymous sign-in in your Firebase project.</p>`;
             }
         }
 
-        function handleAuthError(err) {
-            let errorMessage = '';
-            if (err.code === 'auth/operation-not-allowed' || err.code === 'auth/admin-restricted-operation') {
-                errorMessage = `
-                    <p class="text-red-500 font-semibold">প্রমাণীকরণ ব্যর্থ হয়েছে।</p>
-                    <p class="text-slate-600 text-xs mt-1">এই অ্যাপটি ব্যবহার করতে, অনুগ্রহ করে আপনার Firebase প্রজেক্টে যান, Authentication -> Sign-in method-এ গিয়ে 'Anonymous' সাইন-ইন পদ্ধতিটি সক্রিয় করুন।</p>
-                `;
-            } else {
-                 errorMessage = `
-                    <p class="text-red-500 font-semibold">প্রমাণীকরণ সম্ভব হচ্ছে না।</p>
-                    <p class="text-slate-600 text-xs mt-1">অনুগ্রহ করে আপনার ইন্টারনেট সংযোগ এবং Firebase কনফিগারেশন পরীক্ষা করুন। বিস্তারিত জানতে কনসোল দেখুন।</p>
-                `;
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const name = nameInput.value.trim();
+            const mobile = mobileInput.value.trim();
+
+            if (name && mobile && userId) {
+                loginButton.disabled = true;
+                loginButton.textContent = 'Saving...';
+                
+                const userProfileRef = doc(db, 'artifacts', appId, 'users', userId);
+                try {
+                    await setDoc(userProfileRef, {
+                        name: name,
+                        mobile: mobile,
+                        createdAt: serverTimestamp()
+                    });
+                    showChatScreen(name);
+                } catch (error) {
+                    console.error("Error saving profile:", error);
+                    authStatus.textContent = 'Failed to save profile. Please try again.';
+                    loginButton.disabled = false;
+                    loginButton.textContent = 'চ্যাট শুরু করুন';
+                }
             }
-            userIdDisplay.innerHTML = errorMessage;
+        });
+
+        function showChatScreen(userName) {
+            loginContainer.classList.add('hidden');
+            appContainer.style.display = 'flex'; // Use flex to make it visible
+            
+            const shortId = `${userId.substring(0, 4)}...${userId.substring(userId.length - 4)}`;
+            userIdDisplay.textContent = `ব্যবহারকারী: ${userName} (আইডি: ${shortId})`;
+            
+            messagesCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'messages');
+            listenForMessages();
         }
 
         // --- 5. EVENT LISTENERS & FILE HANDLING ---
@@ -205,12 +221,11 @@
             if (file) {
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    const base64String = event.target.result;
-                    imagePreview.src = base64String;
-                    selectedFileBase64 = base64String.split(',')[1];
+                    imagePreview.src = event.target.result;
+                    selectedFileBase64 = event.target.result.split(',')[1];
                     selectedFileMimeType = file.type;
                     imagePreviewContainer.classList.remove('hidden');
-                    displayMessage('bot', 'আসসালামু আলাইকুম। আমি মঞ্জুরুল। ছবিটি পেয়েছি। এখন আপনি এই ছবিটি সম্পর্কে কী জানতে চান, তা অনুগ্রহ করে লিখুন।');
+                    displayMessage('bot', ' ছবিটি পেয়েছি। এখন আপনি এই ছবিটি সম্পর্কে কী জানতে চান, তা অনুগ্রহ করে লিখুন।');
                 };
                 reader.readAsDataURL(file);
             }
@@ -227,7 +242,6 @@
             e.preventDefault();
             const messageText = messageInput.value.trim();
             if (!messageText || !userId || !messagesCollectionRef) return;
-
             messageInput.value = '';
             
             await addDoc(messagesCollectionRef, { text: messageText, sender: 'user', timestamp: serverTimestamp() });
@@ -236,15 +250,11 @@
                 askWithImage(messageText, selectedFileBase64, selectedFileMimeType);
             } else if (messageText.startsWith('/image')) {
                 const prompt = messageText.substring(6).trim();
-                if (prompt) {
-                    generateImage(prompt);
-                } else {
-                    displayMessage('bot', 'ছবি তৈরি করতে, /image এরপর একটি বর্ণনা দিন।');
-                }
+                if (prompt) generateImage(prompt);
+                else displayMessage('bot', 'ছবি তৈরি করতে, /image এরপর একটি বর্ণনা দিন।');
             } else {
                 getTextResponse(messageText);
             }
-            
             removeImageBtn.click();
         });
 
@@ -254,26 +264,20 @@
             if (unsubscribeMessages) unsubscribeMessages();
 
             const q = query(messagesCollectionRef, orderBy("timestamp"));
-            
             unsubscribeMessages = onSnapshot(q, (snapshot) => {
                 const existingMessages = chatMessages.querySelectorAll('.dynamic-message');
                 existingMessages.forEach(msg => msg.remove());
-
                 snapshot.docs.forEach(doc => {
                     const message = doc.data();
                     if (message.type === 'image') {
-                        const imageElement = document.createElement('img');
-                        imageElement.src = message.imageUrl;
-                        imageElement.className = 'rounded-lg max-w-xs md:max-w-sm mt-2';
-                        displayMessage(message.sender, imageElement);
+                        const img = document.createElement('img');
+                        img.src = message.imageUrl;
+                        displayMessage(message.sender, img);
                     } else {
                         displayMessage(message.sender, message.text);
                     }
                 });
-                
                 chatMessages.scrollTop = chatMessages.scrollHeight;
-            }, (error) => {
-                console.error("Error fetching messages: ", error);
             });
         }
 
@@ -311,33 +315,26 @@
                 messageWrapper.insertAdjacentHTML('afterbegin', avatarHTML);
                 messageWrapper.appendChild(bubble);
             }
-
             chatMessages.appendChild(messageWrapper);
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
         // --- 7. AI RESPONSE LOGIC ---
-
         async function getTextResponse(prompt) {
             typingIndicator.classList.remove('hidden');
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-
-            const fullPrompt = `You are 'মঞ্জুরুল', a helpful and knowledgeable AI assistant from Bangladesh. You are a Muslim. Your responses should be in polite, standard Bengali. When you introduce yourself, start with 'আসসালামু আলাইকুম'. User's query: "${prompt}"`;
+            const fullPrompt = `You are 'মঞ্জুরুল', a helpful AI assistant from Bangladesh. You are a Muslim. Your responses should be in polite, standard Bengali. User's query: "${prompt}"`;
             const geminiApiKey = "AIzaSyBTDtJhQe9Ts1Zn8gBKqMKJ6idQ-rEOUgw"; 
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
             const payload = { contents: [{ role: "user", parts: [{ text: fullPrompt }] }] };
-
             try {
                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                if (!response.ok) throw new Error(`API request failed with status ${response.status}.`);
-                
+                if (!response.ok) throw new Error(`API request failed.`);
                 const result = await response.json();
                 const botResponse = result.candidates[0].content.parts[0].text;
-                
                 await addDoc(messagesCollectionRef, { text: botResponse, sender: 'bot', timestamp: serverTimestamp() });
             } catch (error) {
                 console.error("Error getting text response:", error);
-                displayMessage('bot', 'দুঃখিত, একটি প্রযুক্তিগত সমস্যা হয়েছে। অনুগ্রহ করে কিছুক্ষণ পর আবার চেষ্টা করুন।');
+                displayMessage('bot', 'দুঃখিত, একটি প্রযুক্তিগত সমস্যা হয়েছে।');
             } finally {
                 typingIndicator.classList.add('hidden');
             }
@@ -345,30 +342,15 @@
         
         async function askWithImage(prompt, imageBase64, mimeType) {
             typingIndicator.classList.remove('hidden');
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-
             const geminiApiKey = "AIzaSyBTDtJhQe9Ts1Zn8gBKqMKJ6idQ-rEOUgw"; 
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
-            
-            const fullPrompt = `You are 'মঞ্জুরুল', a helpful and knowledgeable AI assistant from Bangladesh. You are a Muslim. Your responses should be in polite, standard Bengali. Analyze the following image and answer the user's question. User's question: "${prompt}"`;
-
-            const payload = {
-                contents: [{
-                    role: "user",
-                    parts: [
-                        { text: fullPrompt },
-                        { inlineData: { mimeType: mimeType, data: imageBase64 } }
-                    ]
-                }]
-            };
-
+            const fullPrompt = `You are 'মঞ্জুরুল', a helpful AI assistant. Analyze the image and answer the user's question in Bengali. User's question: "${prompt}"`;
+            const payload = { contents: [{ role: "user", parts: [{ text: fullPrompt }, { inlineData: { mimeType: mimeType, data: imageBase64 } }] }] };
             try {
                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                if (!response.ok) throw new Error(`Vision API request failed with status ${response.status}.`);
-                
+                if (!response.ok) throw new Error(`Vision API request failed.`);
                 const result = await response.json();
                 const botResponse = result.candidates[0].content.parts[0].text;
-                
                 await addDoc(messagesCollectionRef, { text: botResponse, sender: 'bot', timestamp: serverTimestamp() });
             } catch (error) {
                 console.error("Error with image query:", error);
@@ -381,13 +363,10 @@
         async function generateImage(bengaliPrompt) {
             displayMessage('bot', `আপনার অনুরোধটি ইংরেজিতে অনুবাদ করা হচ্ছে...`);
             typingIndicator.classList.remove('hidden');
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-            
             const geminiApiKey = "AIzaSyBTDtJhQe9Ts1Zn8gBKqMKJ6idQ-rEOUgw";
-            const translationPrompt = `Translate the following Bengali phrase into a concise, descriptive English phrase suitable for an image generation model. Only return the translated English text. Bengali phrase: "${bengaliPrompt}"`;
+            const translationPrompt = `Translate this Bengali phrase into a concise, descriptive English phrase for an image model: "${bengaliPrompt}"`;
             const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
             const geminiPayload = { contents: [{ role: "user", parts: [{ text: translationPrompt }] }] };
-            
             let englishPrompt;
             try {
                 const response = await fetch(geminiApiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(geminiPayload) });
@@ -405,40 +384,28 @@
             const imagenApiKey = "";
             const imagenApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${imagenApiKey}`;
             const imagenPayload = { instances: [{ prompt: englishPrompt }], parameters: { "sampleCount": 1 } };
-
             try {
                 const response = await fetch(imagenApiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(imagenPayload) });
-                if (!response.ok) throw new Error(`Image API request failed with status ${response.status}.`);
-
+                if (!response.ok) throw new Error(`Image API request failed.`);
                 const result = await response.json();
                 if (result.predictions && result.predictions[0]?.bytesBase64Encoded) {
                     const imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
-                    const imageElement = document.createElement('img');
-                    imageElement.src = imageUrl;
-                    
-                    displayMessage('bot', imageElement);
-                    
-                    await addDoc(messagesCollectionRef, {
-                        text: `"${bengaliPrompt}"-এর জন্য একটি ছবি তৈরি করা হয়েছে।`,
-                        sender: 'bot',
-                        type: 'image',
-                        imageUrl: imageUrl,
-                        timestamp: serverTimestamp()
-                    });
-
-                } else {
-                    throw new Error("No image data in API response.");
-                }
+                    const img = document.createElement('img');
+                    img.src = imageUrl;
+                    displayMessage('bot', img);
+                    await addDoc(messagesCollectionRef, { text: `"${bengaliPrompt}"-এর জন্য একটি ছবি।`, sender: 'bot', type: 'image', imageUrl: imageUrl, timestamp: serverTimestamp() });
+                } else { throw new Error("No image data in response."); }
             } catch (error) {
                 console.error("Error generating image:", error);
-                displayMessage('bot', 'দুঃখিত, ছবিটি তৈরি করা সম্ভব হয়নি। অনুগ্রহ করে আবার চেষ্টা করুন।');
+                displayMessage('bot', 'দুঃখিত, ছবিটি তৈরি করা সম্ভব হয়নি।');
             } finally {
                 typingIndicator.classList.add('hidden');
             }
         }
 
-        // Initial sign-in attempt when the script loads
+        // Initial sign-in attempt
         signInUser();
     </script>
 </body>
 </html>
+
