@@ -86,7 +86,7 @@
                 <input 
                     type="text" 
                     id="message-input"
-                    placeholder="বার্তা লিখুন... '/image' দিয়ে ছবি বানান"
+                    placeholder="আপনার প্রশ্ন লিখুন... অথবা '/image' দিয়ে ছবি বানান"
                     autocomplete="off"
                     class="flex-1 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition duration-300"
                     disabled 
@@ -216,6 +216,8 @@
                     selectedFileBase64 = base64String.split(',')[1];
                     selectedFileMimeType = file.type;
                     imagePreviewContainer.classList.remove('hidden');
+                    // **FIX:** Prompt the user for a question after image upload.
+                    displayMessage('bot', 'আসসালামু আলাইকুম। আমি মঞ্জুরুল। ছবিটি পেয়েছি। এখন আপনি এই ছবিটি সম্পর্কে কী জানতে চান, তা অনুগ্রহ করে লিখুন।');
                 };
                 reader.readAsDataURL(file);
             }
@@ -237,9 +239,9 @@
             
             await addDoc(messagesCollectionRef, { text: messageText, sender: 'user', timestamp: serverTimestamp() });
 
-            if (messageText.startsWith('/জিজ্ঞাসা') && selectedFileBase64) {
-                const prompt = messageText.substring(5).trim();
-                askWithImage(prompt, selectedFileBase64, selectedFileMimeType);
+            // **FIX:** Simplified logic. If an image is selected, the text is a query about it.
+            if (selectedFileBase64) {
+                askWithImage(messageText, selectedFileBase64, selectedFileMimeType);
             } else if (messageText.startsWith('/image')) {
                 const prompt = messageText.substring(6).trim();
                 if (prompt) {
@@ -356,11 +358,13 @@
             const geminiApiKey = "AIzaSyBTDtJhQe9Ts1Zn8gBKqMKJ6idQ-rEOUgw"; 
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
             
+            const fullPrompt = `You are 'মঞ্জুরুল', a helpful and knowledgeable AI assistant from Bangladesh. You are a Muslim. Your responses should be in polite, standard Bengali. Analyze the following image and answer the user's question. User's question: "${prompt}"`;
+
             const payload = {
                 contents: [{
                     role: "user",
                     parts: [
-                        { text: prompt },
+                        { text: fullPrompt },
                         { inlineData: { mimeType: mimeType, data: imageBase64 } }
                     ]
                 }]
