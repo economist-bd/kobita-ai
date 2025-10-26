@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>মঞ্জুরুল AI — ChatGPT-style</title>
+  <meta name="description" content="মঞ্জুরুল AI — ChatGPT-style বাংলা AI সহকারী" />
+  <meta name="theme-color" content="#0f172a" />
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <!-- Markdown + Syntax Highlight -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+
+  <style>
+    body { font-family: 'Noto Sans Bengali', sans-serif; }
+    .no-select { user-select: none; }
+    .scrollbar-thin::-webkit-scrollbar { height: 6px; width: 8px; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, .5); border-radius: 8px; }
+    .message-enter { animation: msgpop .12s ease-out; transform-origin: left bottom; }
+    @keyframes msgpop { from { transform: translateY(6px) scale(.98); opacity:0 } to { transform:none; opacity:1 } }
+    pre { position: relative; }
+    .copy-btn {
+      position: absolute;
+      right: 8px;
+      top: 8px;
+      background: rgba(0,0,0,0.06);
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-slate-100 min-h-screen">
+
+  <div class="max-w-7xl mx-auto p-4 grid grid-cols-1 md:grid-cols-[320px_1fr] gap-4">
+
+    <!-- Sidebar -->
+    <aside class="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 flex flex-col h-[80vh]">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <h2 class="text-lg font-bold">মঞ্জুরুল AI</h2>
+          <p class="text-xs text-slate-500 dark:text-slate-400">ChatGPT-style interface</p>
+        </div>
+        <button id="new-chat" class="bg-indigo-600 text-white px-3 py-1 rounded-md text-sm">নতুন চ্যাট</button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto scrollbar-thin" id="chats-list">
+        <!-- chat list items -->
+      </div>
+
+      <div class="mt-3 flex items-center gap-2">
+        <button id="settings-btn" class="flex-1 py-2 rounded-md border border-slate-200 dark:border-slate-700">সেটিংস</button>
+        <button id="install-btn" class="hidden px-3 py-2 rounded-md bg-emerald-500 text-white">Install</button>
+      </div>
+
+    </aside>
+
+    <!-- Main -->
+    <main class="flex flex-col h-[80vh] bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
+
+      <!-- header -->
+      <header class="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700">
+        <div>
+          <div id="current-chat-title" class="font-semibold text-lg">নতুন চ্যাট</div>
+          <div class="text-xs text-slate-500 dark:text-slate-400" id="user-info">Connecting...</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="theme-toggle" class="px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-700">থিম</button>
+          <button id="regenerate-btn" class="px-3 py-2 rounded-md bg-yellow-500 text-white">পুনরায় তৈরি করুন</button>
+        </div>
+      </header>
+
+      <!-- messages area -->
+      <div id="messages" class="flex-1 p-6 overflow-y-auto space-y-4 scrollbar-thin">
+        <!-- messages injected here -->
+      </div>
+
+      <!-- typing & input -->
+      <div class="border-t border-slate-200 dark:border-slate-700 p-4">
+        <div id="typing-indicator" class="hidden text-sm text-slate-500 mb-2">মঞ্জুরুল লিখছে…</div>
+
+        <form id="message-form" class="flex items-end gap-3">
+          <label class="p-2 rounded-md bg-slate-100 dark:bg-slate-700 cursor-pointer">
+            <input id="file-input" type="file" accept="image/*" class="hidden" />
+            📎
+          </label>
+
+          <textarea id="message-input" rows="1" placeholder="আপনার প্রশ্ন লিখুন — Enter পাঠান, Shift+Enter নতুন লাইন" class="flex-1 p-3 rounded-md border border-slate-200 dark:border-slate-700 resize-none bg-transparent"></textarea>
+
+          <button id="mic-btn" type="button" class="px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-700">🎤</button>
+          <button id="send-btn" type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-md">পাঠান</button>
+        </form>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Modal: Settings -->
+  <div id="settings-modal" class="fixed inset-0 hidden items-center justify-center bg-black/30">
+    <div class="bg-white dark:bg-slate-800 rounded-lg p-6 w-[520px]">
+      <h3 class="text-lg font-semibold mb-3">সেটিংস</h3>
+      <div class="space-y-3">
+        <div>
+          <label class="flex items-center gap-2"><input id="voice-toggle" type="checkbox" /> Voice (TTS/STT)</label>
+        </div>
+        <div>
+          <label class="flex items-center gap-2"><input id="persist-toggle" type="checkbox" checked /> লোকাল চ্যাট সংরক্ষণ</label>
+        </div>
+        <div class="flex justify-end gap-2 mt-4">
+          <button id="close-settings" class="px-3 py-2 rounded-md border">বন্ধ</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script type="module">
+    // ---------- Utilities ----------
+    const uid = () => Math.random().toString(36).slice(2,10);
+    const now = () => new Date().toISOString();
+    const sanitize = (s) => {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    };
+
+    // ---------- Marked + highlight setup ----------
+    marked.setOptions({
+      highlight: function(code, lang) {
+        try {
+          return hljs.highlightAuto(code, lang ? [lang] : undefined).value;
+        } catch(e) {
+          return code;
+        }
+      }
+    });
+
+    // ---------- DOM refs ----------
+    const chatsListEl = document.getElementById('chats-list');
+    const messagesEl = document.getElementById('messages');
+    const newChatBtn = document.getElementById('new-chat');
+    const messageForm = document.getElementById('message-form');
+    const messageInput = document.getElementById('message-input');
+    const sendBtn = document.getElementById('send-btn');
+    const regenerateBtn = document.getElementById('regenerate-btn');
+    const currentChatTitle = document.getElementById('current-chat-title');
+    const userInfoEl = document.getElementById('user-info');
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsModal = document.getElementById('settings-modal');
+    const closeSettings = document.getElementById('close-settings');
+    const voiceToggle = document.getElementById('voice-toggle');
+    const persistToggle = document.getElementById('persist-toggle');
+    const fileInput = document.getElementById('file-input');
+    const micBtn = document.getElementById('mic-btn');
+    const typingIndicator = document.getElementById('typing-indicator');
+    const installBtn = document.getElementById('install-btn');
+    const themeToggle = document.getElementById('theme-toggle');
+
+    // ---------- App state ----------
+    let chats = []; // { id, title, messages: [ {id, sender, text, type, timestamp} ] }
+    let currentChatId = null;
+    let lastUserMessageForRegenerate = null;
+    const LS_CHATS = 'mj_chats_v2';
+    const LS_PROFILE = 'mj_profile_v2';
+
+    // ---------- Load saved chats ----------
+    function loadChats() {
+      try {
+        const raw = localStorage.getItem(LS_CHATS);
+        if (raw) chats = JSON.parse(raw);
+        else chats = [];
+      } catch(e) { chats = []; }
+    }
+    function saveChats() {
+      try { localStorage.setItem(LS_CHATS, JSON.stringify(chats)); } catch(e){}
+    }
+
+    // ---------- Render sidebar ----------
+    function renderChatsList() {
+      chatsListEl.innerHTML = '';
+      for (const c of chats.slice().reverse()) { // show recent first
+        const item = document.createElement('div');
+        item.className = 'p-3 rounded-md mb-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700';
+        item.innerHTML = `<div class="font-medium">${sanitize(c.title || 'নতুন চ্যাট')}</div>
+                          <div class="text-xs text-slate-500">${c.messages?.length || 0} বার্তা • ${new Date(c.updatedAt).toLocaleString()}</div>`;
+        item.addEventListener('click', () => selectChat(c.id));
+        chatsListEl.appendChild(item);
+      }
+    }
+
+    // ---------- New chat ----------
+    function createNewChat(title = 'নতুন চ্যাট') {
+      const id = uid();
+      const chat = { id, title, messages: [], createdAt: now(), updatedAt: now() };
+      chats.push(chat);
+      saveChats();
+      renderChatsList();
+      selectChat(id);
+    }
+
+    function selectChat(id) {
+      currentChatId = id;
+      const c = chats.find(x => x.id === id);
+      if (!c) return;
+      currentChatTitle.textContent = c.title || 'নতুন চ্যাট';
+      renderMessages(c.messages);
+    }
+
+    // ---------- Render messages ----------
+    function renderMessages(msgs) {
+      messagesEl.innerHTML = '';
+      for (const m of msgs) renderMessageEl(m);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function renderMessageEl(m) {
+      const wrap = document.createElement('div');
+      wrap.className = 'message-enter';
+      const bubble = document.createElement('div');
+      bubble.className = 'p-3 rounded-lg max-w-[80%] break-words';
+      if (m.sender === 'user') {
+        wrap.classList.add('flex','justify-end');
+        bubble.classList.add('bg-blue-600','text-white','rounded-br-none');
+      } else if (m.sender === 'bot') {
+        wrap.classList.add('flex','justify-start');
+        bubble.classList.add('bg-slate-100','dark:bg-slate-700','text-slate-900','dark:text-slate-100','rounded-bl-none');
+      } else {
+        wrap.classList.add('flex','justify-center');
+        bubble.classList.add('bg-slate-200','text-slate-700');
+      }
+
+      // content (support markdown)
+      if (m.type === 'image' && m.imageUrl) {
+        const img = document.createElement('img');
+        img.src = m.imageUrl;
+        img.alt = 'image';
+        img.className = 'rounded-md max-w-full h-auto';
+        bubble.appendChild(img);
+      } else {
+        const html = marked.parse(m.text || '');
+        bubble.innerHTML = html;
+        // add copy buttons to code blocks
+        bubble.querySelectorAll('pre').forEach(pre => {
+          if (!pre.querySelector('.copy-btn')) {
+            const btn = document.createElement('button');
+            btn.className = 'copy-btn';
+            btn.textContent = 'Copy';
+            btn.title = 'Copy code';
+            btn.addEventListener('click', async () => {
+              const code = pre.querySelector('code')?.textContent || pre.textContent;
+              if (navigator.clipboard) await navigator.clipboard.writeText(code);
+              btn.textContent = 'Copied';
+              setTimeout(()=>btn.textContent='Copy',1200);
+            });
+            pre.style.position='relative';
+            pre.appendChild(btn);
+          }
+        });
+      }
+
+      wrap.appendChild(bubble);
+      messagesEl.appendChild(wrap);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      // syntax highlight
+      messagesEl.querySelectorAll('pre code').forEach((el) => hljs.highlightElement(el));
+    }
+
+    // ---------- Add message to current chat ----------
+    function addMessageToCurrentChat(msg) {
+      if (!currentChatId) {
+        createNewChat();
+      }
+      const chat = chats.find(c => c.id === currentChatId);
+      if (!chat) return;
+      chat.messages.push(msg);
+      chat.updatedAt = now();
+      saveChats();
+      renderMessages(chat.messages);
+      renderChatsList();
+    }
+
+    // ---------- Regenerate: sends last user message again ----------
+    function regenerate() {
+      if (!lastUserMessageForRegenerate) return;
+      sendUserMessage(lastUserMessageForRegenerate, { isRegenerate: true });
+    }
+
+    // ---------- Firestore & Firebase (kept) ----------
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, query, onSnapshot, orderBy, serverTimestamp, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCbZD1X2iXESuwvbFif3m9PZ7xK-bsZ1uc",
+      authDomain: "kobitar-khata-oe1bo.firebaseapp.com",
+      databaseURL: "https://kobitar-khata-oe1bo-default-rtdb.firebaseio.com",
+      projectId: "kobitar-khata-oe1bo",
+      storageBucket: "kobitar-khata-oe1bo.firebasestorage.app",
+      messagingSenderId: "901122182466",
+      appId: "1:901122182466:web:ce984ed8d16cf2ce948cdb",
+      measurementId: "G-RR98NQ9XZZ"
+    };
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-chatbot-app';
+    const firebaseApp = initializeApp(firebaseConfig);
+    const auth = getAuth(firebaseApp);
+    const db = getFirestore(firebaseApp);
+
+    let userId = null;
+    let messagesCollectionRef = null;
+    let unsubscribeMessages = null;
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        userId = user.uid;
+        userInfoEl.textContent = `ব্যবহারকারী আইডি: ${userId.substring(0,6)}...`;
+        // load profile from firestore
+        const userProfileRef = doc(db, 'artifacts', appId, 'users', userId);
+        try {
+          const docSnap = await getDoc(userProfileRef);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            userInfoEl.textContent = `ব্যবহারকারী: ${data.name || 'User'} • ${userId.substring(0,6)}...`;
+            // if stored chats in firestore: (optional) fetch or merge
+          } else {
+            // show login prompt using local profile if any
+            const saved = localStorage.getItem(LS_PROFILE);
+            if (saved) {
+              const p = JSON.parse(saved);
+              userInfoEl.textContent = `ব্যবহারকারী: ${p.name} • ${userId.substring(0,6)}...`;
+            } else {
+              userInfoEl.textContent = `ব্যবহারকারী: অজানা • ${userId.substring(0,6)}...`;
+            }
+          }
+        } catch(e) {
+          userInfoEl.textContent = `Offline • ${userId.substring(0,6)}...`;
+        }
+
+        // set up a per-user messages collection for saving each chat message (optional)
+        messagesCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'messages');
+        // You can set up Firestore listeners per-chat if you want server-synced conversations.
+        // For now we keep local chat list and save each message to Firestore as a flat log.
+      } else {
+        // try anonymous sign-in
+        try { await signInAnonymously(auth); } catch(e) { console.warn('auth sign-in failed', e); }
+      }
+    });
+
+    // ---------- AI calls (Gemini) ----------
+    async function getTextResponse(promptText) {
+      typingIndicator.classList.remove('hidden');
+      const fullPrompt = `You are 'মঞ্জুরুল', a helpful AI assistant from Bangladesh. You are a Muslim. Your responses should be in polite, standard Bengali. User's query: "${promptText}"`;
+      const geminiApiKey = "AIzaSyBTDtJhQe9Ts1Zn8gBKqMKJ6idQ-rEOUgw"; // kept from original
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+      const payload = { contents: [{ role: "user", parts: [{ text: fullPrompt }] }] };
+      try {
+        const resp = await fetch(apiUrl, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) });
+        if (!resp.ok) throw new Error('API error');
+        const json = await resp.json();
+        const botText = json.candidates?.[0]?.content?.parts?.[0]?.text || 'দুঃখিত, উত্তর পাওয়া যায়নি।';
+        const botMsg = { id: uid(), sender: 'bot', text: botText, timestamp: now() };
+        addMessageToCurrentChat(botMsg);
+        // save to firestore log
+        try { await addDoc(messagesCollectionRef, { ...botMsg, timestamp: serverTimestamp() }); } catch(e){}
+        if (voiceToggle.checked && 'speechSynthesis' in window) speak(botText);
+      } catch (err) {
+        console.error('getTextResponse err', err);
+        addMessageToCurrentChat({ id: uid(), sender:'bot', text: 'দুঃখিত, একটি প্রযুক্তিগত সমস্যা হয়েছে।', timestamp: now() });
+      } finally {
+        typingIndicator.classList.add('hidden');
+      }
+    }
+
+    async function askWithImage(promptText, imageBase64, mimeType) {
+      typingIndicator.classList.remove('hidden');
+      const geminiApiKey = "AIzaSyBTDtJhQe9Ts1Zn8gBKqMKJ6idQ-rEOUgw";
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+      const fullPrompt = `You are 'মঞ্জুরুল', a helpful AI assistant. Analyze the image and answer the user's question in Bengali. User's question: "${promptText}"`;
+      const payload = { contents: [{ role: "user", parts: [{ text: fullPrompt }, { inlineData: { mimeType: mimeType, data: imageBase64 } }] }] };
+      try {
+        const resp = await fetch(apiUrl, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) });
+        if (!resp.ok) throw new Error('vision API error');
+        const json = await resp.json();
+        const botText = json.candidates?.[0]?.content?.parts?.[0]?.text || 'ছবিটি বিশ্লেষণ করা যায়নি।';
+        addMessageToCurrentChat({ id: uid(), sender:'bot', text: botText, timestamp: now() });
+        try { await addDoc(messagesCollectionRef, { text: botText, sender:'bot', timestamp: serverTimestamp() }); } catch(e){}
+      } catch(e) {
+        console.error(e);
+        addMessageToCurrentChat({ id: uid(), sender:'bot', text: 'দুঃখিত, ছবিটি বিশ্লেষণ করা সম্ভব হয়নি।', timestamp: now() });
+      } finally {
+        typingIndicator.classList.add('hidden');
+      }
+    }
+
+    async function generateImage(bengaliPrompt) {
+      addMessageToCurrentChat({ id: uid(), sender:'bot', text: 'অনুবাদ করা হচ্ছে এবং ছবি তৈরি করা হবে...', timestamp: now() });
+      const geminiApiKey = "AIzaSyBTDtJhQe9Ts1Zn8gBKqMKJ6idQ-rEOUgw";
+      const translationPrompt = `Translate this Bengali phrase into a concise, descriptive English phrase for an image model: "${bengaliPrompt}"`;
+      const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+      try {
+        const transResp = await fetch(geminiApiUrl, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ contents:[{ role:'user', parts:[{ text: translationPrompt }] }] }) });
+        const transJson = await transResp.json();
+        const englishPrompt = transJson.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || bengaliPrompt;
+        addMessageToCurrentChat({ id: uid(), sender:'bot', text: `অনুবাদ: ${englishPrompt} — ছবি তৈরি করা হচ্ছে...`, timestamp: now() });
+
+        const imagenApiKey = ""; // <-- put your image-gen key here if you have one
+        if (!imagenApiKey) {
+          addMessageToCurrentChat({ id: uid(), sender:'bot', text: 'Image generation key is not configured.', timestamp: now() });
+          return;
+        }
+        const imagenApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${imagenApiKey}`;
+        const imgResp = await fetch(imagenApiUrl, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ instances:[{ prompt: englishPrompt }], parameters:{ sampleCount:1 } }) });
+        const imgJson = await imgResp.json();
+        const b64 = imgJson.predictions?.[0]?.bytesBase64Encoded;
+        if (b64) {
+          const imageUrl = `data:image/png;base64,${b64}`;
+          addMessageToCurrentChat({ id: uid(), sender:'bot', type:'image', imageUrl, text: 'Generated image', timestamp: now() });
+        } else {
+          addMessageToCurrentChat({ id: uid(), sender:'bot', text: 'ছবি তৈরি করা যায়নি।', timestamp: now() });
+        }
+      } catch(e) {
+        console.error(e);
+        addMessageToCurrentChat({ id: uid(), sender:'bot', text: 'ছবি তৈরি করতে ত্রুটি হয়েছে।', timestamp: now() });
+      }
+    }
+
+    // ---------- Sending user message ----------
+    let selectedFileBase64 = null;
+    let selectedFileMimeType = null;
+
+    fileInput.addEventListener('change', (ev) => {
+      const file = ev.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        selectedFileBase64 = e.target.result.split(',')[1];
+        selectedFileMimeType = file.type;
+        addMessageToCurrentChat({ id: uid(), sender:'bot', text: 'ছবিটি নির্বাচিত — এখন প্রশ্ন লিখুন অথবা /image কমান্ড ব্যবহার করুন।', timestamp: now() });
+      };
+      reader.readAsDataURL(file);
+    });
+
+    async function sendUserMessage(text, opts = {}) {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      const msg = { id: uid(), sender:'user', text: trimmed, timestamp: now() };
+      addMessageToCurrentChat(msg);
+      lastUserMessageForRegenerate = trimmed;
+
+      // save to Firestore log
+      try { await addDoc(messagesCollectionRef, { text: trimmed, sender: 'user', timestamp: serverTimestamp() }); } catch(e){}
+
+      // process: image attached?
+      if (selectedFileBase64) {
+        await askWithImage(trimmed, selectedFileBase64, selectedFileMimeType);
+        selectedFileBase64 = null;
+        selectedFileMimeType = null;
+        fileInput.value = '';
+      } else if (trimmed.startsWith('/image')) {
+        const prompt = trimmed.slice(6).trim();
+        if (prompt) await generateImage(prompt);
+        else addMessageToCurrentChat({ id: uid(), sender:'bot', text:'ছবি তৈরি করতে /image <বর্ণনা> ব্যবহার করুন।', timestamp: now() });
+      } else {
+        await getTextResponse(trimmed);
+      }
+    }
+
+    // ---------- Message form handling ----------
+    messageForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!currentChatId) createNewChat();
+      await sendUserMessage(messageInput.value);
+      messageInput.value = '';
+      autosizeTextarea();
+    });
+
+    // Enter sends, Shift+Enter newline
+    messageInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendBtn.click();
+      }
+    });
+
+    // autosize
+    function autosizeTextarea() {
+      messageInput.style.height = 'auto';
+      messageInput.style.height = (messageInput.scrollHeight) + 'px';
+    }
+    messageInput.addEventListener('input', autosizeTextarea);
+
+    // ---------- Voice (STT/TTS) ----------
+    let recognition = null;
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SR();
+      recognition.lang = 'bn-BD';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+      recognition.onresult = (ev) => {
+        messageInput.value = ev.results[0][0].transcript;
+        autosizeTextarea();
+      };
+    } else {
+      micBtn.title = 'Speech recognition not supported';
+    }
+
+    micBtn.addEventListener('click', () => {
+      if (!recognition) { alert('Speech recognition not supported in this browser.'); return; }
+      try { recognition.start(); } catch(e){ console.warn(e); }
+    });
+
+    function speak(text) {
+      if (!('speechSynthesis' in window) || !voiceToggle.checked) return;
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = 'bn-BD';
+      u.rate = 1;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    }
+
+    // ---------- Regenerate button ----------
+    regenerateBtn.addEventListener('click', () => regenerate());
+
+    // ---------- Settings ----------
+    settingsBtn.addEventListener('click', () => settingsModal.classList.remove('hidden'));
+    closeSettings.addEventListener('click', () => settingsModal.classList.add('hidden'));
+    settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) settingsModal.classList.add('hidden'); });
+
+    // ---------- New chat ----------
+    newChatBtn.addEventListener('click', () => createNewChat('নতুন চ্যাট'));
+
+    // ---------- Copy & code handling delegated (in messages area) ----------
+    messagesEl.addEventListener('click', (e) => {
+      // code copy handled per-button on render
+    });
+
+    // ---------- Install prompt ----------
+    let deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.classList.remove('hidden');
+    });
+    installBtn.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const choice = await deferredPrompt.userChoice;
+      if (choice?.outcome === 'accepted') installBtn.classList.add('hidden');
+      deferredPrompt = null;
+    });
+
+    // ---------- Theme toggle ----------
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const savedTheme = localStorage.getItem('mj_theme') || (prefersDark ? 'dark' : 'light');
+    function applyTheme(t) {
+      if (t === 'dark') document.documentElement.classList.add('dark'); else document.documentElement.classList.remove('dark');
+      localStorage.setItem('mj_theme', t);
+    }
+    applyTheme(savedTheme);
+    themeToggle.addEventListener('click', () => applyTheme(document.documentElement.classList.contains('dark') ? 'light' : 'dark'));
+
+    // ---------- Service worker (PWA) ----------
+    if ('serviceWorker' in navigator) {
+      const swSource = `self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open('mj-static-v1').then(c => c.addAll(['/'])).catch(()=>{}));});
+      self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+      self.addEventListener('fetch', (e) => { if (e.request.method!=='GET') return; e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{ try{ if (e.request.destination==='image') caches.open('mj-static-v1').then(c=>c.put(e.request,res.clone())); }catch{} return res; }).catch(()=>e.request.mode==='navigate'?new Response('<p>আপনি অফলাইনে আছেন।</p>') : new Response('',{status:503})) )); });`;
+      const swBlob = new Blob([swSource], { type: 'application/javascript' });
+      navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(()=>console.warn('SW registration failed'));
+    }
+
+    // ---------- Init: load saved chats and show UI ----------
+    loadChats();
+    if (chats.length === 0) createNewChat();
+    else selectChat(chats[0].id);
+    renderChatsList();
+
+    // Save profile simple UI (for display)
+    const savedProfile = localStorage.getItem(LS_PROFILE);
+    if (!savedProfile) localStorage.setItem(LS_PROFILE, JSON.stringify({ name:'Guest', createdAt: now() }));
+
+    // ---------- Persist toggle effects ----------
+    persistToggle.addEventListener('change', () => {
+      if (!persistToggle.checked) {
+        // remove saved chats from localStorage
+        localStorage.removeItem(LS_CHATS);
+      } else {
+        saveChats();
+      }
+    });
+
+    // Accessibility: focus message input on / key
+    window.addEventListener('keydown', (e) => {
+      if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+        e.preventDefault(); messageInput.focus();
+      }
+    });
+
+    // ---------- Save chats periodically (also on page unload) ----------
+    window.addEventListener('beforeunload', saveChats);
+
+  </script>
+</body>
+</html>
