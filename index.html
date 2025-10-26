@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>মঞ্জুরুল AI — ChatGPT-style</title>
   <meta name="description" content="মঞ্জুরুল AI — ChatGPT-style বাংলা AI সহকারী" />
+  <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#0f172a" />
 
   <!-- Tailwind -->
@@ -21,8 +22,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
 
   <style>
+    :root { --bg: #0f172a; --muted: #94a3b8; --accent: #10b981; }
     body { font-family: 'Noto Sans Bengali', sans-serif; }
-    .no-select { user-select: none; }
     .scrollbar-thin::-webkit-scrollbar { height: 6px; width: 8px; }
     .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, .5); border-radius: 8px; }
     .message-enter { animation: msgpop .12s ease-out; transform-origin: left bottom; }
@@ -38,36 +39,34 @@
       font-size: 12px;
       cursor: pointer;
     }
+    .sidebar-item.active { background: rgba(99,102,241,0.08); }
   </style>
 </head>
 <body class="bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-slate-100 min-h-screen">
 
   <div class="max-w-7xl mx-auto p-4 grid grid-cols-1 md:grid-cols-[320px_1fr] gap-4">
-
     <!-- Sidebar -->
-    <aside class="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 flex flex-col h-[80vh]">
+    <aside id="sidebar" class="bg-white dark:bg-slate-800 rounded-xl shadow-md p-4 flex flex-col h-[82vh]">
       <div class="flex items-center justify-between mb-3">
         <div>
           <h2 class="text-lg font-bold">মঞ্জুরুল AI</h2>
-          <p class="text-xs text-slate-500 dark:text-slate-400">ChatGPT-style interface</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400">ChatGPT-style</p>
         </div>
         <button id="new-chat" class="bg-indigo-600 text-white px-3 py-1 rounded-md text-sm">নতুন চ্যাট</button>
       </div>
 
       <div class="flex-1 overflow-y-auto scrollbar-thin" id="chats-list">
-        <!-- chat list items -->
+        <!-- chat list items injected -->
       </div>
 
       <div class="mt-3 flex items-center gap-2">
         <button id="settings-btn" class="flex-1 py-2 rounded-md border border-slate-200 dark:border-slate-700">সেটিংস</button>
         <button id="install-btn" class="hidden px-3 py-2 rounded-md bg-emerald-500 text-white">Install</button>
       </div>
-
     </aside>
 
     <!-- Main -->
-    <main class="flex flex-col h-[80vh] bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
-
+    <main class="flex flex-col h-[82vh] bg-white dark:bg-slate-800 rounded-xl shadow-md overflow-hidden">
       <!-- header -->
       <header class="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700">
         <div>
@@ -76,13 +75,13 @@
         </div>
         <div class="flex items-center gap-2">
           <button id="theme-toggle" class="px-3 py-2 rounded-md bg-slate-100 dark:bg-slate-700">থিম</button>
-          <button id="regenerate-btn" class="px-3 py-2 rounded-md bg-yellow-500 text-white">পুনরায় তৈরি করুন</button>
+          <button id="regenerate-btn" class="px-3 py-2 rounded-md bg-yellow-500 text-white">পুনরায়</button>
         </div>
       </header>
 
-      <!-- messages area -->
-      <div id="messages" class="flex-1 p-6 overflow-y-auto space-y-4 scrollbar-thin">
-        <!-- messages injected here -->
+      <!-- messages -->
+      <div id="messages" class="flex-1 p-6 overflow-y-auto space-y-4 scrollbar-thin bg-slate-50 dark:bg-slate-900">
+        <!-- messages -->
       </div>
 
       <!-- typing & input -->
@@ -101,21 +100,16 @@
           <button id="send-btn" type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-md">পাঠান</button>
         </form>
       </div>
-
     </main>
   </div>
 
-  <!-- Modal: Settings -->
+  <!-- Settings modal -->
   <div id="settings-modal" class="fixed inset-0 hidden items-center justify-center bg-black/30">
     <div class="bg-white dark:bg-slate-800 rounded-lg p-6 w-[520px]">
       <h3 class="text-lg font-semibold mb-3">সেটিংস</h3>
       <div class="space-y-3">
-        <div>
-          <label class="flex items-center gap-2"><input id="voice-toggle" type="checkbox" /> Voice (TTS/STT)</label>
-        </div>
-        <div>
-          <label class="flex items-center gap-2"><input id="persist-toggle" type="checkbox" checked /> লোকাল চ্যাট সংরক্ষণ</label>
-        </div>
+        <label class="flex items-center gap-2"><input id="voice-toggle" type="checkbox" /> Voice (TTS/STT)</label>
+        <label class="flex items-center gap-2"><input id="persist-toggle" type="checkbox" checked /> লোকাল চ্যাট সংরক্ষণ</label>
         <div class="flex justify-end gap-2 mt-4">
           <button id="close-settings" class="px-3 py-2 rounded-md border">বন্ধ</button>
         </div>
@@ -125,27 +119,19 @@
 
   <!-- Scripts -->
   <script type="module">
-    // ---------- Utilities ----------
+    /* ------------- Utilities ------------- */
     const uid = () => Math.random().toString(36).slice(2,10);
     const now = () => new Date().toISOString();
-    const sanitize = (s) => {
-      const d = document.createElement('div');
-      d.textContent = s;
-      return d.innerHTML;
-    };
+    const sanitize = s => { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
 
-    // ---------- Marked + highlight setup ----------
+    /* ------------- Markdown + Highlight ------------- */
     marked.setOptions({
-      highlight: function(code, lang) {
-        try {
-          return hljs.highlightAuto(code, lang ? [lang] : undefined).value;
-        } catch(e) {
-          return code;
-        }
+      highlight: (code, lang) => {
+        try { return hljs.highlightAuto(code, lang ? [lang] : undefined).value; } catch(e) { return code; }
       }
     });
 
-    // ---------- DOM refs ----------
+    /* ------------- DOM refs ------------- */
     const chatsListEl = document.getElementById('chats-list');
     const messagesEl = document.getElementById('messages');
     const newChatBtn = document.getElementById('new-chat');
@@ -166,46 +152,44 @@
     const installBtn = document.getElementById('install-btn');
     const themeToggle = document.getElementById('theme-toggle');
 
-    // ---------- App state ----------
-    let chats = []; // { id, title, messages: [ {id, sender, text, type, timestamp} ] }
+    /* ------------- App state ------------- */
+    let chats = [];                // each chat: { id, title, messages: [] , createdAt, updatedAt }
     let currentChatId = null;
     let lastUserMessageForRegenerate = null;
-    const LS_CHATS = 'mj_chats_v2';
-    const LS_PROFILE = 'mj_profile_v2';
+    const LS_CHATS = 'mj_chats_v3';
+    const LS_PROFILE = 'mj_profile_v3';
+    const CONTEXT_WINDOW = 8; // last N messages to include as context to Gemini
 
-    // ---------- Load saved chats ----------
+    /* ------------- Local persistence ------------- */
     function loadChats() {
-      try {
-        const raw = localStorage.getItem(LS_CHATS);
-        if (raw) chats = JSON.parse(raw);
-        else chats = [];
-      } catch(e) { chats = []; }
+      try { chats = JSON.parse(localStorage.getItem(LS_CHATS) || '[]'); } catch(e){ chats = []; }
     }
-    function saveChats() {
-      try { localStorage.setItem(LS_CHATS, JSON.stringify(chats)); } catch(e){}
-    }
+    function saveChats() { try { localStorage.setItem(LS_CHATS, JSON.stringify(chats)); } catch(e){} }
 
-    // ---------- Render sidebar ----------
+    /* ------------- Render sidebar ------------- */
     function renderChatsList() {
       chatsListEl.innerHTML = '';
-      for (const c of chats.slice().reverse()) { // show recent first
+      const list = chats.slice().reverse();
+      for (const c of list) {
         const item = document.createElement('div');
-        item.className = 'p-3 rounded-md mb-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700';
+        item.className = 'p-3 rounded-md mb-2 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 sidebar-item';
+        if (c.id === currentChatId) item.classList.add('active');
         item.innerHTML = `<div class="font-medium">${sanitize(c.title || 'নতুন চ্যাট')}</div>
-                          <div class="text-xs text-slate-500">${c.messages?.length || 0} বার্তা • ${new Date(c.updatedAt).toLocaleString()}</div>`;
+                          <div class="text-xs text-slate-500 dark:text-slate-400">${(c.messages?.length || 0)} বার্তা • ${new Date(c.updatedAt).toLocaleString()}</div>`;
         item.addEventListener('click', () => selectChat(c.id));
         chatsListEl.appendChild(item);
       }
     }
 
-    // ---------- New chat ----------
-    function createNewChat(title = 'নতুন চ্যাট') {
+    /* ------------- Chat management ------------- */
+    function createNewChat(title='নতুন চ্যাট') {
       const id = uid();
       const chat = { id, title, messages: [], createdAt: now(), updatedAt: now() };
       chats.push(chat);
       saveChats();
       renderChatsList();
       selectChat(id);
+      // persist chat metadata to Firestore (handled later in firestore section)
     }
 
     function selectChat(id) {
@@ -214,9 +198,10 @@
       if (!c) return;
       currentChatTitle.textContent = c.title || 'নতুন চ্যাট';
       renderMessages(c.messages);
+      renderChatsList();
     }
 
-    // ---------- Render messages ----------
+    /* ------------- Message rendering ------------- */
     function renderMessages(msgs) {
       messagesEl.innerHTML = '';
       for (const m of msgs) renderMessageEl(m);
@@ -228,39 +213,25 @@
       wrap.className = 'message-enter';
       const bubble = document.createElement('div');
       bubble.className = 'p-3 rounded-lg max-w-[80%] break-words';
-      if (m.sender === 'user') {
-        wrap.classList.add('flex','justify-end');
-        bubble.classList.add('bg-blue-600','text-white','rounded-br-none');
-      } else if (m.sender === 'bot') {
-        wrap.classList.add('flex','justify-start');
-        bubble.classList.add('bg-slate-100','dark:bg-slate-700','text-slate-900','dark:text-slate-100','rounded-bl-none');
-      } else {
-        wrap.classList.add('flex','justify-center');
-        bubble.classList.add('bg-slate-200','text-slate-700');
-      }
+      if (m.sender === 'user') { wrap.classList.add('flex','justify-end'); bubble.classList.add('bg-blue-600','text-white','rounded-br-none'); }
+      else if (m.sender === 'bot') { wrap.classList.add('flex','justify-start'); bubble.classList.add('bg-slate-100','dark:bg-slate-700','text-slate-900','dark:text-slate-100','rounded-bl-none'); }
+      else { wrap.classList.add('flex','justify-center'); bubble.classList.add('bg-slate-200','text-slate-700'); }
 
-      // content (support markdown)
       if (m.type === 'image' && m.imageUrl) {
-        const img = document.createElement('img');
-        img.src = m.imageUrl;
-        img.alt = 'image';
-        img.className = 'rounded-md max-w-full h-auto';
+        const img = document.createElement('img'); img.src = m.imageUrl; img.alt='image'; img.className='rounded-md max-w-full h-auto';
         bubble.appendChild(img);
       } else {
         const html = marked.parse(m.text || '');
         bubble.innerHTML = html;
-        // add copy buttons to code blocks
         bubble.querySelectorAll('pre').forEach(pre => {
           if (!pre.querySelector('.copy-btn')) {
             const btn = document.createElement('button');
             btn.className = 'copy-btn';
             btn.textContent = 'Copy';
-            btn.title = 'Copy code';
             btn.addEventListener('click', async () => {
               const code = pre.querySelector('code')?.textContent || pre.textContent;
               if (navigator.clipboard) await navigator.clipboard.writeText(code);
-              btn.textContent = 'Copied';
-              setTimeout(()=>btn.textContent='Copy',1200);
+              btn.textContent = 'Copied'; setTimeout(()=>btn.textContent='Copy',1200);
             });
             pre.style.position='relative';
             pre.appendChild(btn);
@@ -271,15 +242,11 @@
       wrap.appendChild(bubble);
       messagesEl.appendChild(wrap);
       messagesEl.scrollTop = messagesEl.scrollHeight;
-      // syntax highlight
-      messagesEl.querySelectorAll('pre code').forEach((el) => hljs.highlightElement(el));
+      messagesEl.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
     }
 
-    // ---------- Add message to current chat ----------
-    function addMessageToCurrentChat(msg) {
-      if (!currentChatId) {
-        createNewChat();
-      }
+    function addMessageToCurrentChat(msg, saveRemote=true) {
+      if (!currentChatId) createNewChat();
       const chat = chats.find(c => c.id === currentChatId);
       if (!chat) return;
       chat.messages.push(msg);
@@ -287,17 +254,19 @@
       saveChats();
       renderMessages(chat.messages);
       renderChatsList();
+
+      // Save to Firestore per-chat messages collection
+      if (saveRemote && messagesCollectionRefPerChat) {
+        try {
+          const targetRef = messagesCollectionRefPerChat(currentChatId);
+          addDoc(targetRef, { ...msg, timestamp: serverTimestamp() }).catch(()=>console.warn('firestore add failed'));
+        } catch(e) { console.warn('saveRemote error', e); }
+      }
     }
 
-    // ---------- Regenerate: sends last user message again ----------
-    function regenerate() {
-      if (!lastUserMessageForRegenerate) return;
-      sendUserMessage(lastUserMessageForRegenerate, { isRegenerate: true });
-    }
-
-    // ---------- Firestore & Firebase (kept) ----------
+    /* ------------- Firebase (Firestore) setup ------------- */
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, collection, addDoc, query, onSnapshot, orderBy, serverTimestamp, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -316,95 +285,151 @@
     const db = getFirestore(firebaseApp);
 
     let userId = null;
-    let messagesCollectionRef = null;
-    let unsubscribeMessages = null;
+    // helper: get reference to per-user chat metadata collection
+    const chatsCollectionRef = () => collection(db, 'artifacts', appId, 'users', userId, 'chats');
+    // helper: messages per chat
+    const messagesCollectionRefPerChat = (chatId) => collection(db, 'artifacts', appId, 'users', userId, 'chats', chatId, 'messages');
 
+    // authenticate (anonymous)
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         userId = user.uid;
-        userInfoEl.textContent = `ব্যবহারকারী আইডি: ${userId.substring(0,6)}...`;
-        // load profile from firestore
-        const userProfileRef = doc(db, 'artifacts', appId, 'users', userId);
-        try {
-          const docSnap = await getDoc(userProfileRef);
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            userInfoEl.textContent = `ব্যবহারকারী: ${data.name || 'User'} • ${userId.substring(0,6)}...`;
-            // if stored chats in firestore: (optional) fetch or merge
-          } else {
-            // show login prompt using local profile if any
-            const saved = localStorage.getItem(LS_PROFILE);
-            if (saved) {
-              const p = JSON.parse(saved);
-              userInfoEl.textContent = `ব্যবহারকারী: ${p.name} • ${userId.substring(0,6)}...`;
-            } else {
-              userInfoEl.textContent = `ব্যবহারকারী: অজানা • ${userId.substring(0,6)}...`;
-            }
-          }
-        } catch(e) {
-          userInfoEl.textContent = `Offline • ${userId.substring(0,6)}...`;
-        }
-
-        // set up a per-user messages collection for saving each chat message (optional)
-        messagesCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'messages');
-        // You can set up Firestore listeners per-chat if you want server-synced conversations.
-        // For now we keep local chat list and save each message to Firestore as a flat log.
+        userInfoEl.textContent = `ব্যবহারকারী: ${userId.slice(0,6)}...`;
+        // start listening to remote chats list for this user and merge
+        watchRemoteChats();
       } else {
-        // try anonymous sign-in
-        try { await signInAnonymously(auth); } catch(e) { console.warn('auth sign-in failed', e); }
+        try { await signInAnonymously(auth); } catch(e) { console.warn('anonymous sign-in failed', e); }
       }
     });
 
-    // ---------- AI calls (Gemini) ----------
-    async function getTextResponse(promptText) {
-      typingIndicator.classList.remove('hidden');
-      const fullPrompt = `You are 'মঞ্জুরুল', a helpful AI assistant from Bangladesh. You are a Muslim. Your responses should be in polite, standard Bengali. User's query: "${promptText}"`;
-      const geminiApiKey = "AIzaSyBTDtJhQe9Ts1Zn8gBKqMKJ6idQ-rEOUgw"; // kept from original
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
-      const payload = { contents: [{ role: "user", parts: [{ text: fullPrompt }] }] };
+    // listen to remote chat list and mirror metadata locally (merge)
+    let remoteUnsub = null;
+    function watchRemoteChats() {
       try {
-        const resp = await fetch(apiUrl, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) });
+        if (remoteUnsub) remoteUnsub();
+        const q = query(chatsCollectionRef(), orderBy('updatedAt','desc'));
+        remoteUnsub = onSnapshot(q, (snap) => {
+          // Merge remote into local chats (remote wins if newer)
+          snap.docs.forEach(docSnap => {
+            const rc = docSnap.data(); const id = docSnap.id;
+            const idx = chats.findIndex(c => c.id === id);
+            if (idx === -1) {
+              chats.push({ id, title: rc.title || 'নতুন চ্যাট', messages: rc.messages || [], createdAt: rc.createdAt || now(), updatedAt: rc.updatedAt || now() });
+            } else {
+              // if remote updatedAt newer, replace title (we keep messages locally managed)
+              const local = chats[idx];
+              if ((rc.updatedAt && rc.updatedAt.toDate && local.updatedAt && new Date(rc.updatedAt.toDate()) > new Date(local.updatedAt)) || rc.updatedAt > local.updatedAt) {
+                local.title = rc.title || local.title;
+                local.updatedAt = rc.updatedAt || local.updatedAt;
+              }
+            }
+          });
+          saveChats();
+          renderChatsList();
+        }, (err) => console.warn('remote chats watch error', err));
+      } catch(e) { console.warn('watchRemoteChats error', e); }
+    }
+
+    /* ------------- Gemini / AI interaction with context ------------- */
+
+    // Build conversation array from last N messages of the chat.
+    function buildConversationPayload(chat, systemPrompt = `You are 'মঞ্জুরুল', a helpful AI assistant from Bangladesh. Respond politely in Bengali.`) {
+      const messages = chat.messages || [];
+      // take last CONTEXT_WINDOW entries
+      const last = messages.slice(-CONTEXT_WINDOW);
+      // Map to Gemini content parts format with roles
+      // We'll put a system instruction first
+      const contents = [{ role: "system", parts: [{ text: systemPrompt }] }];
+      for (const m of last) {
+        if (m.sender === 'user') contents.push({ role: "user", parts: [{ text: m.text }] });
+        else if (m.sender === 'bot') contents.push({ role: "assistant", parts: [{ text: m.text }] });
+      }
+      return contents;
+    }
+
+    async function getTextResponseWithContext(promptText) {
+      typingIndicator.classList.remove('hidden');
+      const chat = chats.find(c => c.id === currentChatId);
+      const geminiApiKey = "AIzaSyBTDtJhQe9Ts1Zn8gBKqMKJ6idQ-rEOUgw";
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+      // Add user message locally first (so context includes it)
+      const userMsg = { id: uid(), sender: 'user', text: promptText, timestamp: now() };
+      addMessageToCurrentChat(userMsg);
+      lastUserMessageForRegenerate = promptText;
+
+      // Build conversation from local chat messages (including the newly added user message)
+      const c = chats.find(x => x.id === currentChatId);
+      const conversationContents = buildConversationPayload(c);
+
+      try {
+        const payload = { contents: conversationContents };
+        const resp = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify(payload) });
         if (!resp.ok) throw new Error('API error');
         const json = await resp.json();
         const botText = json.candidates?.[0]?.content?.parts?.[0]?.text || 'দুঃখিত, উত্তর পাওয়া যায়নি।';
         const botMsg = { id: uid(), sender: 'bot', text: botText, timestamp: now() };
         addMessageToCurrentChat(botMsg);
-        // save to firestore log
-        try { await addDoc(messagesCollectionRef, { ...botMsg, timestamp: serverTimestamp() }); } catch(e){}
-        if (voiceToggle.checked && 'speechSynthesis' in window) speak(botText);
+        // Save chat metadata to Firestore (title & updatedAt)
+        try {
+          await setDoc(doc(db, 'artifacts', appId, 'users', userId, 'chats', currentChatId), { title: chats.find(c=>c.id===currentChatId).title || 'নতুন চ্যাট', updatedAt: serverTimestamp() }, { merge: true });
+        } catch(e){ console.warn('save chat metadata failed', e); }
+        // Save assistant message to per-chat messages collection
+        try {
+          await addDoc(messagesCollectionRefPerChat(currentChatId), { ...botMsg, timestamp: serverTimestamp() });
+        } catch(e) { console.warn('save bot message failed', e); }
+        // TTS
+        if (voiceToggle.checked && 'speechSynthesis' in window) {
+          speak(botText);
+        }
       } catch (err) {
-        console.error('getTextResponse err', err);
-        addMessageToCurrentChat({ id: uid(), sender:'bot', text: 'দুঃখিত, একটি প্রযুক্তিগত সমস্যা হয়েছে।', timestamp: now() });
-      } finally {
-        typingIndicator.classList.add('hidden');
-      }
+        console.error('getTextResponseWithContext error', err);
+        addMessageToCurrentChat({ id: uid(), sender: 'bot', text: 'দুঃখিত, একটি প্রযুক্তিগত সমস্যা হয়েছে।', timestamp: now() });
+      } finally { typingIndicator.classList.add('hidden'); }
     }
 
-    async function askWithImage(promptText, imageBase64, mimeType) {
+    /* ------------- Image + vision handling ------------- */
+    let selectedFileBase64 = null;
+    let selectedFileMimeType = null;
+    fileInput.addEventListener('change', (ev) => {
+      const file = ev.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        selectedFileBase64 = e.target.result.split(',')[1];
+        selectedFileMimeType = file.type;
+        addMessageToCurrentChat({ id: uid(), sender:'bot', text:'ছবিটি নির্বাচিত — এখন প্রশ্ন লিখুন অথবা /image কমান্ড ব্যবহার করুন।', timestamp: now() });
+      };
+      reader.readAsDataURL(file);
+    });
+
+    async function askWithImageAndContext(promptText, imageBase64, mimeType) {
       typingIndicator.classList.remove('hidden');
+      // push the user message first so it's in chat history
+      addMessageToCurrentChat({ id: uid(), sender:'user', text: promptText, timestamp: now() });
+      const c = chats.find(x => x.id===currentChatId);
+      const contents = buildConversationPayload(c, `You are 'মঞ্জুরুল' and analyze the attached image when answering. Answer in Bengali.`);
+      // append inline image
+      contents.push({ role:'user', parts: [{ inlineData: { mimeType, data: imageBase64 } }] });
+
       const geminiApiKey = "AIzaSyBTDtJhQe9Ts1Zn8gBKqMKJ6idQ-rEOUgw";
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
-      const fullPrompt = `You are 'মঞ্জুরুল', a helpful AI assistant. Analyze the image and answer the user's question in Bengali. User's question: "${promptText}"`;
-      const payload = { contents: [{ role: "user", parts: [{ text: fullPrompt }, { inlineData: { mimeType: mimeType, data: imageBase64 } }] }] };
       try {
-        const resp = await fetch(apiUrl, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) });
-        if (!resp.ok) throw new Error('vision API error');
+        const resp = await fetch(apiUrl, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ contents }) });
+        if (!resp.ok) throw new Error('vision API failed');
         const json = await resp.json();
         const botText = json.candidates?.[0]?.content?.parts?.[0]?.text || 'ছবিটি বিশ্লেষণ করা যায়নি।';
         addMessageToCurrentChat({ id: uid(), sender:'bot', text: botText, timestamp: now() });
-        try { await addDoc(messagesCollectionRef, { text: botText, sender:'bot', timestamp: serverTimestamp() }); } catch(e){}
       } catch(e) {
-        console.error(e);
-        addMessageToCurrentChat({ id: uid(), sender:'bot', text: 'দুঃখিত, ছবিটি বিশ্লেষণ করা সম্ভব হয়নি।', timestamp: now() });
-      } finally {
-        typingIndicator.classList.add('hidden');
-      }
+        console.error('askWithImageAndContext err', e);
+        addMessageToCurrentChat({ id: uid(), sender:'bot', text:'দুঃখিত, ছবিটি বিশ্লেষণ করা সম্ভব হয়নি।', timestamp: now() });
+      } finally { typingIndicator.classList.add('hidden'); }
     }
 
-    async function generateImage(bengaliPrompt) {
-      addMessageToCurrentChat({ id: uid(), sender:'bot', text: 'অনুবাদ করা হচ্ছে এবং ছবি তৈরি করা হবে...', timestamp: now() });
-      const geminiApiKey = "AIzaSyBTDtJhQe9Ts1Zn8gBKqMKJ6idQ-rEOUgw";
+    /* ------------- Image generation (/image) ------------- */
+    async function generateImageFromPrompt(bengaliPrompt) {
+      addMessageToCurrentChat({ id: uid(), sender:'bot', text:'অনুবাদের পর ছবি তৈরি হচ্ছে...', timestamp: now() });
       const translationPrompt = `Translate this Bengali phrase into a concise, descriptive English phrase for an image model: "${bengaliPrompt}"`;
+      const geminiApiKey = "AIzaSyBTDtJhQe9Ts1Zn8gBKqMKJ6idQ-rEOUgw";
       const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
       try {
         const transResp = await fetch(geminiApiUrl, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ contents:[{ role:'user', parts:[{ text: translationPrompt }] }] }) });
@@ -412,7 +437,7 @@
         const englishPrompt = transJson.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || bengaliPrompt;
         addMessageToCurrentChat({ id: uid(), sender:'bot', text: `অনুবাদ: ${englishPrompt} — ছবি তৈরি করা হচ্ছে...`, timestamp: now() });
 
-        const imagenApiKey = ""; // <-- put your image-gen key here if you have one
+        const imagenApiKey = ""; // <-- PUT YOUR IMAGE-GEN KEY HERE if you have one
         if (!imagenApiKey) {
           addMessageToCurrentChat({ id: uid(), sender:'bot', text: 'Image generation key is not configured.', timestamp: now() });
           return;
@@ -423,82 +448,49 @@
         const b64 = imgJson.predictions?.[0]?.bytesBase64Encoded;
         if (b64) {
           const imageUrl = `data:image/png;base64,${b64}`;
-          addMessageToCurrentChat({ id: uid(), sender:'bot', type:'image', imageUrl, text: 'Generated image', timestamp: now() });
-        } else {
-          addMessageToCurrentChat({ id: uid(), sender:'bot', text: 'ছবি তৈরি করা যায়নি।', timestamp: now() });
-        }
+          addMessageToCurrentChat({ id: uid(), sender:'bot', type:'image', imageUrl, text:'Generated image', timestamp: now() });
+        } else addMessageToCurrentChat({ id: uid(), sender:'bot', text:'ছবি তৈরি করা যায়নি।', timestamp: now() });
       } catch(e) {
-        console.error(e);
-        addMessageToCurrentChat({ id: uid(), sender:'bot', text: 'ছবি তৈরি করতে ত্রুটি হয়েছে।', timestamp: now() });
+        console.error('generateImageFromPrompt err', e);
+        addMessageToCurrentChat({ id: uid(), sender:'bot', text:'ছবি তৈরি করতে ত্রুটি হয়েছে।', timestamp: now() });
       }
     }
 
-    // ---------- Sending user message ----------
-    let selectedFileBase64 = null;
-    let selectedFileMimeType = null;
-
-    fileInput.addEventListener('change', (ev) => {
-      const file = ev.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        selectedFileBase64 = e.target.result.split(',')[1];
-        selectedFileMimeType = file.type;
-        addMessageToCurrentChat({ id: uid(), sender:'bot', text: 'ছবিটি নির্বাচিত — এখন প্রশ্ন লিখুন অথবা /image কমান্ড ব্যবহার করুন।', timestamp: now() });
-      };
-      reader.readAsDataURL(file);
-    });
-
-    async function sendUserMessage(text, opts = {}) {
-      const trimmed = text.trim();
-      if (!trimmed) return;
-      const msg = { id: uid(), sender:'user', text: trimmed, timestamp: now() };
-      addMessageToCurrentChat(msg);
-      lastUserMessageForRegenerate = trimmed;
-
-      // save to Firestore log
-      try { await addDoc(messagesCollectionRef, { text: trimmed, sender: 'user', timestamp: serverTimestamp() }); } catch(e){}
-
-      // process: image attached?
-      if (selectedFileBase64) {
-        await askWithImage(trimmed, selectedFileBase64, selectedFileMimeType);
-        selectedFileBase64 = null;
-        selectedFileMimeType = null;
-        fileInput.value = '';
-      } else if (trimmed.startsWith('/image')) {
-        const prompt = trimmed.slice(6).trim();
-        if (prompt) await generateImage(prompt);
-        else addMessageToCurrentChat({ id: uid(), sender:'bot', text:'ছবি তৈরি করতে /image <বর্ণনা> ব্যবহার করুন।', timestamp: now() });
-      } else {
-        await getTextResponse(trimmed);
-      }
-    }
-
-    // ---------- Message form handling ----------
+    /* ------------- Send handling ------------- */
     messageForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+      const text = messageInput.value.trim();
+      if (!text && !selectedFileBase64) return;
       if (!currentChatId) createNewChat();
-      await sendUserMessage(messageInput.value);
-      messageInput.value = '';
-      autosizeTextarea();
+
+      // If image attached and user wrote question: call askWithImageAndContext
+      if (selectedFileBase64 && text) {
+        await askWithImageAndContext(text, selectedFileBase64, selectedFileMimeType);
+        selectedFileBase64 = null; selectedFileMimeType = null; fileInput.value='';
+      } else if (text.startsWith('/image')) {
+        const prompt = text.slice(6).trim();
+        if (prompt) await generateImageFromPrompt(prompt);
+        else addMessageToCurrentChat({ id: uid(), sender:'bot', text:'ছবি তৈরি করতে /image <বর্ণনা> ব্যবহার করুন।', timestamp: now() });
+      } else {
+        await getTextResponseWithContext(text);
+      }
+      messageInput.value = ''; autosizeTextarea();
     });
 
     // Enter sends, Shift+Enter newline
     messageInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        sendBtn.click();
-      }
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendBtn.click(); }
     });
 
-    // autosize
-    function autosizeTextarea() {
-      messageInput.style.height = 'auto';
-      messageInput.style.height = (messageInput.scrollHeight) + 'px';
-    }
+    function autosizeTextarea() { messageInput.style.height='auto'; messageInput.style.height = (messageInput.scrollHeight) + 'px'; }
     messageInput.addEventListener('input', autosizeTextarea);
 
-    // ---------- Voice (STT/TTS) ----------
+    /* ------------- Regenerate ------------- */
+    regenerateBtn.addEventListener('click', () => {
+      if (lastUserMessageForRegenerate) getTextResponseWithContext(lastUserMessageForRegenerate);
+    });
+
+    /* ------------- Voice ------------- */
     let recognition = null;
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -506,106 +498,55 @@
       recognition.lang = 'bn-BD';
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
-      recognition.onresult = (ev) => {
-        messageInput.value = ev.results[0][0].transcript;
-        autosizeTextarea();
-      };
-    } else {
-      micBtn.title = 'Speech recognition not supported';
-    }
+      recognition.onresult = ev => { messageInput.value = ev.results[0][0].transcript; autosizeTextarea(); };
+    } else micBtn.title = 'Speech recognition not supported';
 
-    micBtn.addEventListener('click', () => {
-      if (!recognition) { alert('Speech recognition not supported in this browser.'); return; }
-      try { recognition.start(); } catch(e){ console.warn(e); }
-    });
+    micBtn.addEventListener('click', () => { if (!recognition) return alert('Speech recognition not supported'); try{ recognition.start(); } catch(e){ console.warn(e);} });
 
     function speak(text) {
-      if (!('speechSynthesis' in window) || !voiceToggle.checked) return;
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'bn-BD';
-      u.rate = 1;
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(u);
+      if (!voiceToggle.checked || !('speechSynthesis' in window)) return;
+      const u = new SpeechSynthesisUtterance(text); u.lang='bn-BD'; u.rate=1; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
     }
 
-    // ---------- Regenerate button ----------
-    regenerateBtn.addEventListener('click', () => regenerate());
-
-    // ---------- Settings ----------
+    /* ------------- UI actions ------------- */
+    newChatBtn.addEventListener('click', () => createNewChat('নতুন চ্যাট'));
     settingsBtn.addEventListener('click', () => settingsModal.classList.remove('hidden'));
     closeSettings.addEventListener('click', () => settingsModal.classList.add('hidden'));
     settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) settingsModal.classList.add('hidden'); });
 
-    // ---------- New chat ----------
-    newChatBtn.addEventListener('click', () => createNewChat('নতুন চ্যাট'));
-
-    // ---------- Copy & code handling delegated (in messages area) ----------
-    messagesEl.addEventListener('click', (e) => {
-      // code copy handled per-button on render
-    });
-
-    // ---------- Install prompt ----------
+    // Install prompt handling
     let deferredPrompt = null;
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      installBtn.classList.remove('hidden');
-    });
-    installBtn.addEventListener('click', async () => {
-      if (!deferredPrompt) return;
-      deferredPrompt.prompt();
-      const choice = await deferredPrompt.userChoice;
-      if (choice?.outcome === 'accepted') installBtn.classList.add('hidden');
-      deferredPrompt = null;
-    });
+    window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); deferredPrompt = e; installBtn.classList.remove('hidden'); });
+    installBtn.addEventListener('click', async ()=>{ if (!deferredPrompt) return; deferredPrompt.prompt(); const choice = await deferredPrompt.userChoice; if (choice?.outcome==='accepted') installBtn.classList.add('hidden'); deferredPrompt = null; });
 
-    // ---------- Theme toggle ----------
+    // Theme toggle
     const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     const savedTheme = localStorage.getItem('mj_theme') || (prefersDark ? 'dark' : 'light');
-    function applyTheme(t) {
-      if (t === 'dark') document.documentElement.classList.add('dark'); else document.documentElement.classList.remove('dark');
-      localStorage.setItem('mj_theme', t);
-    }
+    function applyTheme(t) { if (t==='dark') document.documentElement.classList.add('dark'); else document.documentElement.classList.remove('dark'); localStorage.setItem('mj_theme', t); }
     applyTheme(savedTheme);
-    themeToggle.addEventListener('click', () => applyTheme(document.documentElement.classList.contains('dark') ? 'light' : 'dark'));
+    themeToggle.addEventListener('click', ()=> applyTheme(document.documentElement.classList.contains('dark') ? 'light' : 'dark'));
 
-    // ---------- Service worker (PWA) ----------
+    /* ------------- Service worker registration (sw.js) ------------- */
     if ('serviceWorker' in navigator) {
-      const swSource = `self.addEventListener('install', (e) => { self.skipWaiting(); e.waitUntil(caches.open('mj-static-v1').then(c => c.addAll(['/'])).catch(()=>{}));});
-      self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
-      self.addEventListener('fetch', (e) => { if (e.request.method!=='GET') return; e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(res=>{ try{ if (e.request.destination==='image') caches.open('mj-static-v1').then(c=>c.put(e.request,res.clone())); }catch{} return res; }).catch(()=>e.request.mode==='navigate'?new Response('<p>আপনি অফলাইনে আছেন।</p>') : new Response('',{status:503})) )); });`;
-      const swBlob = new Blob([swSource], { type: 'application/javascript' });
-      navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(()=>console.warn('SW registration failed'));
+      navigator.serviceWorker.register('/sw.js').then(()=>console.log('sw registered')).catch(()=>console.warn('sw reg failed'));
     }
 
-    // ---------- Init: load saved chats and show UI ----------
+    /* ------------- Init on load ------------- */
     loadChats();
     if (chats.length === 0) createNewChat();
-    else selectChat(chats[0].id);
+    selectChat(chats[0].id);
     renderChatsList();
 
-    // Save profile simple UI (for display)
-    const savedProfile = localStorage.getItem(LS_PROFILE);
-    if (!savedProfile) localStorage.setItem(LS_PROFILE, JSON.stringify({ name:'Guest', createdAt: now() }));
+    // load persisted profile if none
+    if (!localStorage.getItem(LS_PROFILE)) localStorage.setItem(LS_PROFILE, JSON.stringify({ name:'Guest', createdAt: now() }));
 
-    // ---------- Persist toggle effects ----------
+    // Persist toggle
     persistToggle.addEventListener('change', () => {
-      if (!persistToggle.checked) {
-        // remove saved chats from localStorage
-        localStorage.removeItem(LS_CHATS);
-      } else {
-        saveChats();
-      }
+      if (!persistToggle.checked) localStorage.removeItem(LS_CHATS);
+      else saveChats();
     });
 
-    // Accessibility: focus message input on / key
-    window.addEventListener('keydown', (e) => {
-      if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
-        e.preventDefault(); messageInput.focus();
-      }
-    });
-
-    // ---------- Save chats periodically (also on page unload) ----------
+    // Save chats before unload
     window.addEventListener('beforeunload', saveChats);
 
   </script>
