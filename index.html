@@ -1,411 +1,668 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>মঞ্জুরুল AI</title>
-    
-    <!-- Tailwind CSS for styling -->
+
+    <!-- Basic meta / SEO / OG -->
+    <meta name="description" content="মঞ্জুরুল AI — আপনার ব্যক্তিগত বাংলা ভাষার সহকারী। চ্যাট করুন, ছবি বিশ্লেষণ করান এবং ছবি তৈরি করুন।" />
+    <meta property="og:title" content="মঞ্জুরুল AI" />
+    <meta property="og:description" content="বাংলা ভাষায় AI সহকারী — চ্যাট করুন, ছবি বিশ্লেষণ ও তৈরি করুন।" />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#3730A3" />
+
+    <!-- Tailwind CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Google Fonts for Bengali script -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;700&display=swap" rel="stylesheet">
-    
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;700&display=swap" rel="stylesheet" />
+
     <style>
+        :root {
+            --bg: #0f172a;
+            --card: #0b1220;
+        }
+        html { scroll-behavior: smooth; }
         body { font-family: 'Noto Sans Bengali', sans-serif; }
-        #chat-messages::-webkit-scrollbar { width: 6px; }
-        #chat-messages::-webkit-scrollbar-track { background: #f1f5f9; }
-        #chat-messages::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
-        #chat-messages::-webkit-scrollbar-thumb:hover { background: #475569; }
+        /* custom scrollbar for chat */
+        #chat-messages::-webkit-scrollbar { width: 8px; }
+        #chat-messages::-webkit-scrollbar-track { background: transparent; }
+        #chat-messages::-webkit-scrollbar-thumb { background: rgba(100,100,120,0.3); border-radius: 10px; }
+        .msg-anim { transform-origin: left bottom; animation: pop .12s ease-out both; }
+        @keyframes pop { from { transform: translateY(6px) scale(.98); opacity:0 } to { transform: none; opacity:1 } }
+        .sr-only { position: absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
     </style>
 </head>
-<body class="bg-slate-100 flex items-center justify-center min-h-screen p-4">
+<body class="bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-slate-100 min-h-screen p-4 flex items-center justify-center">
 
-    <!-- Login/Registration Screen (Initially visible) -->
-    <div id="login-container" class="w-full max-w-md bg-white p-8 rounded-2xl shadow-2xl text-center">
-        <h1 class="text-3xl font-bold text-slate-800 mb-2">স্বাগতম!</h1>
-        <p class="text-slate-500 mb-6">শুরু করার জন্য আপনার তথ্য দিন</p>
-        <form id="login-form">
-            <div class="space-y-4">
-                <input type="text" id="name-input" placeholder="আপনার নাম" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition" required>
-                <input type="tel" id="mobile-input" placeholder="আপনার মোবাইল নম্বর" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition" required>
+    <!-- Container -->
+    <div id="root" class="w-full max-w-3xl">
+
+        <!-- Top bar -->
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h1 class="text-2xl md:text-3xl font-bold">মঞ্জুরুল AI 🤖</h1>
+                <p class="text-sm text-slate-500 dark:text-slate-400" id="status-line">Connecting...</p>
             </div>
-            <button type="submit" id="login-button" class="w-full bg-indigo-600 text-white font-bold py-3 px-5 rounded-lg hover:bg-indigo-700 active:scale-95 transition duration-300 mt-6 disabled:bg-slate-400">
-                চ্যাট শুরু করুন
-            </button>
-        </form>
-        <p id="auth-status" class="text-xs text-slate-400 mt-4">Connecting...</p>
-    </div>
 
-    <!-- Chat Screen (Initially hidden) -->
-    <div id="app-container" class="hidden w-full max-w-2xl h-[95vh] md:h-[90vh] bg-white rounded-2xl shadow-2xl flex-col p-4 md:p-6">
-        
-        <header class="border-b border-slate-200 pb-4 mb-4">
-            <h1 class="text-2xl md:text-3xl font-bold text-slate-800 text-center">মঞ্জুরুল AI 🤖</h1>
-            <div id="user-id-display" class="text-center text-xs text-slate-400 mt-2">Connecting...</div>
-        </header>
+            <div class="flex items-center gap-2">
+                <button id="install-btn" class="hidden px-3 py-2 rounded-lg bg-emerald-500 text-white hover:brightness-95">Install</button>
 
-        <main id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-50 rounded-lg">
-            <div class="flex items-start gap-3">
-                <div class="bg-indigo-500 text-white p-2 rounded-full h-8 w-8 flex-shrink-0 flex items-center justify-center text-sm font-bold">AI</div>
-                <div class="bg-indigo-100 text-slate-800 p-3 rounded-lg max-w-xs md:max-w-md">
-                    <p>আসসালামু আলাইকুম! আমি মঞ্জুরুল, আপনার ব্যক্তিগত AI সহকারী। আমি আপনাকে যেকোনো বিষয়ে সাহায্য করতে প্রস্তুত।</p>
-                </div>
-            </div>
-        </main>
-
-        <div id="typing-indicator" class="hidden flex items-center gap-3 p-4">
-            <div class="bg-indigo-500 text-white p-2 rounded-full h-8 w-8 flex-shrink-0 flex items-center justify-center text-sm font-bold">AI</div>
-            <div class="flex items-center gap-1">
-                <span class="h-2 w-2 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                <span class="h-2 w-2 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                <span class="h-2 w-2 bg-slate-400 rounded-full animate-bounce"></span>
-            </div>
-        </div>
-        
-        <div id="image-preview-container" class="hidden p-2 border-t border-slate-200">
-            <div class="flex items-center justify-between">
-                <p class="text-sm text-slate-600">Selected Image:</p>
-                <button id="remove-image-btn" class="text-red-500 hover:text-red-700 font-bold text-xl">&times;</button>
-            </div>
-            <img id="image-preview" class="max-h-24 mt-2 rounded-lg" />
-        </div>
-
-        <footer class="mt-4">
-            <form id="message-form" class="flex items-center gap-2 md:gap-4">
-                 <label for="file-input" class="cursor-pointer p-3 rounded-lg bg-slate-200 hover:bg-slate-300 transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="text-slate-600" viewBox="0 0 16 16"><path d="M4.502 9.5a3.5 3.5 0 1 1 7 0v-1a2.5 2.5 0 0 0-5 0v1a.5.5 0 0 1-1 0v-1a3.5 3.5 0 1 1 7 0v5.5a.5.5 0 0 1-1 0V9.5a2.5 2.5 0 0 0-5 0v5.5a.5.5 0 0 1-1 0z"/></svg>
-                    <input type="file" id="file-input" class="hidden" accept="image/*">
-                </label>
-                <input type="text" id="message-input" placeholder="আপনার প্রশ্ন লিখুন... অথবা '/image' দিয়ে ছবি বানান" autocomplete="off" class="flex-1 p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none transition">
-                <button type="submit" id="submit-button" class="bg-indigo-600 text-white font-bold py-3 px-5 rounded-lg hover:bg-indigo-700 active:scale-95 transition duration-300 flex items-center gap-2">
-                    <span>পাঠান</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-send-fill" viewBox="0 0 16 16"><path d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855H.766l-.452.18a.5.5 0 0 0-.082.887l.41.26.001.002 4.995 3.178 3.178 4.995.002.002.26.41a.5.5 0 0 0 .886-.083l6-15Zm-1.833 1.89L6.637 10.07l-.215-.338a.5.5 0 0 0-.154-.154l-.338-.215 7.494-7.494 1.178-.471-.47 1.178Z"/></svg>
+                <button id="theme-toggle" title="Toggle theme" class="px-3 py-2 rounded-lg bg-slate-200 dark:bg-slate-800">
+                    <span id="theme-icon">🌙</span>
                 </button>
-            </form>
-        </footer>
+
+                <button id="mic-btn" title="Voice input" class="px-3 py-2 rounded-lg bg-slate-200 dark:bg-slate-800">🎤</button>
+            </div>
+        </div>
+
+        <!-- Main card -->
+        <div id="app" class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg overflow-hidden flex flex-col" style="height:75vh; min-height:520px;">
+            <!-- login -->
+            <div id="login-screen" class="p-6 max-w-md mx-auto">
+                <h2 class="text-xl font-semibold mb-2">স্বাগতম!</h2>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">চ্যাট শুরু করার জন্য অনুগ্রহ করে আপনার নাম ও মোবাইল নম্বর দিন</p>
+                <form id="login-form" class="space-y-3">
+                    <input id="name-input" type="text" required placeholder="আপনার নাম" class="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent" />
+                    <input id="mobile-input" type="tel" required placeholder="মোবাইল নম্বর" class="w-full p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent" />
+                    <div class="flex items-center gap-2">
+                        <button id="login-button" class="flex-1 bg-indigo-600 text-white py-3 rounded-lg font-semibold">চ্যাট শুরু করুন</button>
+                        <button id="guest-button" type="button" class="px-4 py-3 rounded-lg border border-slate-300">গেস্ট</button>
+                    </div>
+                    <p class="text-xs text-slate-400" id="auth-msg">Offline-capable, installable, with voice input.</p>
+                </form>
+            </div>
+
+            <!-- chat -->
+            <div id="chat-screen" class="hidden h-full flex flex-col">
+                <header class="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700">
+                    <div>
+                        <div id="user-id-display" class="text-sm text-slate-500 dark:text-slate-400">--</div>
+                        <div class="text-xs text-slate-400">AI available • <span id="online-indicator">online</span></div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="clear-local" class="text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-200">Clear local</button>
+                        <button id="logout-btn" class="text-sm text-rose-500">Logout</button>
+                    </div>
+                </header>
+
+                <main id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-4 bg-slate-50 dark:bg-slate-900">
+                    <!-- messages injected here -->
+                </main>
+
+                <div id="typing-indicator" class="hidden px-4 py-2 border-t border-slate-200 dark:border-slate-700 flex items-center gap-3">
+                    <div class="h-2 w-2 rounded-full bg-slate-400 animate-bounce"></div>
+                    <div class="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.15s]"></div>
+                    <div class="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.3s]"></div>
+                    <div class="text-sm text-slate-500">মঞ্জুরুল লিখছে...</div>
+                </div>
+
+                <form id="message-form" class="px-4 py-3 border-t border-slate-200 dark:border-slate-700 flex items-center gap-3">
+                    <label class="p-2 rounded-md cursor-pointer bg-slate-200 dark:bg-slate-800" for="file-input" title="Attach image">
+                        📎
+                        <input id="file-input" class="hidden" type="file" accept="image/*" />
+                    </label>
+
+                    <input id="message-input" type="text" autocomplete="off" placeholder="আপনার প্রশ্ন লিখুন — অথবা '/image <বর্ণনা>'" class="flex-1 p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent" />
+
+                    <button id="send-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg">পাঠান</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Image preview / small toast -->
+        <div id="image-preview" class="hidden mt-3 max-w-md mx-auto rounded-lg overflow-hidden border border-slate-200"></div>
+
     </div>
 
-    <!-- Firebase SDK -->
+    <!-- Inline script: modern features + your existing logic (kept and integrated) -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, onSnapshot, orderBy, serverTimestamp, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    // --------------------
+    // UTILITIES & SETTINGS
+    // --------------------
+    const sanitizeText = (s) => {
+        // lightweight sanitization: convert to text only (no HTML)
+        const d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+    };
 
-        // --- 1. CONFIGURATION ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyCbZD1X2iXESuwvbFif3m9PZ7xK-bsZ1uc",
-            authDomain: "kobitar-khata-oe1bo.firebaseapp.com",
-            databaseURL: "https://kobitar-khata-oe1bo-default-rtdb.firebaseio.com",
-            projectId: "kobitar-khata-oe1bo",
-            storageBucket: "kobitar-khata-oe1bo.firebasestorage.app",
-            messagingSenderId: "901122182466",
-            appId: "1:901122182466:web:ce984ed8d16cf2ce948cdb",
-            measurementId: "G-RR98NQ9XZZ"
+    // local keys
+    const LS_MESSAGES = 'mj_messages_v1';
+    const LS_PROFILE = 'mj_profile_v1';
+
+    // --------------------
+    // PWA: manifest + SW (created as blob at runtime so single-file deploy)
+    // --------------------
+    let deferredPrompt = null;
+    const installBtn = document.getElementById('install-btn');
+    const manifestObj = {
+        name: "মঞ্জুরুল AI",
+        short_name: "মঞ্জুরুল",
+        start_url: ".",
+        display: "standalone",
+        background_color: "#ffffff",
+        theme_color: "#3730A3",
+        icons: [
+            { src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='192' height='192'><rect width='100%' height='100%' fill='%233730A3'/><text x='50%' y='55%' fill='white' font-size='96' font-family='Noto Sans' text-anchor='middle'>AI</text></svg>", sizes: "192x192", type: "image/svg+xml" }
+        ]
+    };
+    // create manifest blob url
+    const manifestBlob = new Blob([JSON.stringify(manifestObj)], { type: 'application/json' });
+    const manifestURL = URL.createObjectURL(manifestBlob);
+    const link = document.createElement('link');
+    link.rel = 'manifest';
+    link.href = manifestURL;
+    document.head.appendChild(link);
+
+    // service worker script (simple runtime-cache with offline fallback)
+    const swSource = `self.addEventListener('install', (e) => {
+        self.skipWaiting();
+        e.waitUntil(
+            caches.open('mj-static-v1').then((cache) =>
+                cache.addAll(['/','/index.html']).catch(()=>{})
+            )
+        );
+    });
+    self.addEventListener('activate', event => {
+        event.waitUntil(self.clients.claim());
+    });
+    self.addEventListener('fetch', (event) => {
+        if (event.request.method !== 'GET') return;
+        event.respondWith(
+            caches.match(event.request).then(cached => {
+                if (cached) return cached;
+                return fetch(event.request).then(response => {
+                    // cache some responses (images and fonts)
+                    const clone = response.clone();
+                    if (event.request.destination === 'image' || event.request.destination === 'font') {
+                        caches.open('mj-static-v1').then(c => c.put(event.request, clone));
+                    }
+                    return response;
+                }).catch(() => {
+                    // offline fallback: return a minimal response for document requests
+                    if (event.request.mode === 'navigate') {
+                        return new Response('<!doctype html><meta charset="utf-8"><title>Offline</title><p>আপনি অফলাইনে আছেন।</p>', { headers: { 'Content-Type': 'text/html' }});
+                    }
+                    return new Response('', { status: 503, statusText: 'Offline' });
+                });
+            })
+        );
+    });`;
+    // register service worker from blob
+    if ('serviceWorker' in navigator) {
+        const swBlob = new Blob([swSource], { type: 'application/javascript' });
+        const swUrl = URL.createObjectURL(swBlob);
+        navigator.serviceWorker.register(swUrl).then(() => {
+            console.log('ServiceWorker registered (blob).');
+        }).catch(e => console.warn('SW reg failed', e));
+    }
+
+    // show install prompt when available
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        installBtn.classList.remove('hidden');
+    });
+    installBtn.addEventListener('click', async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const res = await deferredPrompt.userChoice;
+        deferredPrompt = null;
+        installBtn.classList.add('hidden');
+    });
+
+    // --------------------
+    // THEME TOGGLE
+    // --------------------
+    const themeToggle = document.getElementById('theme-toggle');
+    const themeIcon = document.getElementById('theme-icon');
+    const setTheme = (t) => {
+        if (t === 'dark') {
+            document.documentElement.classList.add('dark');
+            themeIcon.textContent = '☀️';
+            localStorage.setItem('mj_theme','dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+            themeIcon.textContent = '🌙';
+            localStorage.setItem('mj_theme','light');
+        }
+    };
+    const savedTheme = localStorage.getItem('mj_theme') || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    setTheme(savedTheme);
+    themeToggle.addEventListener('click', () => setTheme(localStorage.getItem('mj_theme') === 'dark' ? 'light' : 'dark') );
+
+    // --------------------
+    // Speech: input (STT) & output (TTS)
+    // --------------------
+    const micBtn = document.getElementById('mic-btn');
+    let recognition = null;
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SR();
+        recognition.lang = 'bn-BD';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        recognition.onresult = (e) => {
+            const text = e.results[0][0].transcript;
+            document.getElementById('message-input').value = text;
         };
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-chatbot-app';
+        recognition.onerror = (e) => console.warn('STT error', e);
+    } else {
+        micBtn.title = 'Speech recognition not supported';
+    }
+    micBtn.addEventListener('click', () => {
+        if (!recognition) { alert('Speech recognition not supported in this browser.'); return; }
+        try {
+            recognition.start();
+        } catch(e){ console.warn(e); }
+    });
 
-        // --- 2. INITIALIZATION ---
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+    function speak(text) {
+        if (!("speechSynthesis" in window)) return;
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = 'bn-BD';
+        utter.rate = 1;
+        utter.pitch = 1;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utter);
+    }
 
-        // --- 3. DOM ELEMENTS ---
-        const loginContainer = document.getElementById('login-container');
-        const loginForm = document.getElementById('login-form');
-        const nameInput = document.getElementById('name-input');
-        const mobileInput = document.getElementById('mobile-input');
-        const loginButton = document.getElementById('login-button');
-        const authStatus = document.getElementById('auth-status');
-        
-        const appContainer = document.getElementById('app-container');
-        const chatMessages = document.getElementById('chat-messages');
-        const messageForm = document.getElementById('message-form');
-        const messageInput = document.getElementById('message-input');
-        const userIdDisplay = document.getElementById('user-id-display');
-        const fileInput = document.getElementById('file-input');
-        const imagePreviewContainer = document.getElementById('image-preview-container');
-        const imagePreview = document.getElementById('image-preview');
-        const removeImageBtn = document.getElementById('remove-image-btn');
-        const typingIndicator = document.getElementById('typing-indicator');
+    // --------------------
+    // DOM references
+    // --------------------
+    const loginScreen = document.getElementById('login-screen');
+    const chatScreen = document.getElementById('chat-screen');
+    const loginForm = document.getElementById('login-form');
+    const nameInput = document.getElementById('name-input');
+    const mobileInput = document.getElementById('mobile-input');
+    const loginButton = document.getElementById('login-button');
+    const guestButton = document.getElementById('guest-button');
+    const authMsg = document.getElementById('auth-msg');
+    const statusLine = document.getElementById('status-line');
 
-        let userId = null;
-        let messagesCollectionRef = null;
-        let unsubscribeMessages = null; 
-        let selectedFileBase64 = null;
-        let selectedFileMimeType = null;
+    const userIdDisplay = document.getElementById('user-id-display');
+    const chatMessages = document.getElementById('chat-messages');
+    const messageForm = document.getElementById('message-form');
+    const messageInput = document.getElementById('message-input');
+    const fileInput = document.getElementById('file-input');
+    const typingIndicator = document.getElementById('typing-indicator');
+    const sendBtn = document.getElementById('send-btn');
+    const clearLocalBtn = document.getElementById('clear-local');
+    const logoutBtn = document.getElementById('logout-btn');
 
-        // --- 4. AUTHENTICATION & USER PROFILE LOGIC ---
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                userId = user.uid;
-                authStatus.textContent = 'Authenticated. Checking profile...';
-                
-                // Check if user profile already exists
-                const userProfileRef = doc(db, 'artifacts', appId, 'users', userId);
+    // --------------------
+    // FIREBASE setup (kept from original)
+    // --------------------
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, query, onSnapshot, orderBy, serverTimestamp, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyCbZD1X2iXESuwvbFif3m9PZ7xK-bsZ1uc",
+        authDomain: "kobitar-khata-oe1bo.firebaseapp.com",
+        databaseURL: "https://kobitar-khata-oe1bo-default-rtdb.firebaseio.com",
+        projectId: "kobitar-khata-oe1bo",
+        storageBucket: "kobitar-khata-oe1bo.firebasestorage.app",
+        messagingSenderId: "901122182466",
+        appId: "1:901122182466:web:ce984ed8d16cf2ce948cdb",
+        measurementId: "G-RR98NQ9XZZ"
+    };
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-chatbot-app';
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // --------------------
+    // State
+    // --------------------
+    let userId = null;
+    let messagesCollectionRef = null;
+    let unsubscribeMessages = null;
+    let selectedFileBase64 = null;
+    let selectedFileMimeType = null;
+
+    // local message cache helpers
+    function saveLocalMessages(arr) { try { localStorage.setItem(LS_MESSAGES, JSON.stringify(arr)); } catch(e){} }
+    function loadLocalMessages() { try { return JSON.parse(localStorage.getItem(LS_MESSAGES) || '[]'); } catch(e){ return []; } }
+    function pushLocalMessage(msg) { const m = loadLocalMessages(); m.push(msg); saveLocalMessages(m); }
+
+    // --------------------
+    // Authentication flow (preserve original logic)
+    // --------------------
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            userId = user.uid;
+            statusLine.textContent = 'Authenticated — checking profile...';
+            const userProfileRef = doc(db, 'artifacts', appId, 'users', userId);
+            try {
                 const docSnap = await getDoc(userProfileRef);
-
                 if (docSnap.exists()) {
-                    // User is returning, go straight to chat
                     showChatScreen(docSnap.data().name);
                 } else {
-                    // New user, show login screen
-                    loginContainer.classList.remove('hidden');
-                    appContainer.classList.add('hidden');
-                    authStatus.textContent = 'Please provide your details.';
+                    loginScreen.classList.remove('hidden');
+                    chatScreen.classList.add('hidden');
+                    statusLine.textContent = 'Please provide name & mobile.';
                 }
-            } else {
-                // Not authenticated, try to sign in
-                authStatus.textContent = 'Authenticating...';
-                signInUser();
+            } catch (err) {
+                console.warn('Profile fetch failed', err);
+                loginScreen.classList.remove('hidden');
+                statusLine.textContent = 'Offline or cannot fetch profile.';
             }
-        });
-        
-        async function signInUser() {
-            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                try {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                    return; 
-                } catch (error) { console.error("Custom token sign-in failed:", error); }
-            }
+        } else {
+            statusLine.textContent = 'Not authenticated — signing in...';
+            await signInUser();
+        }
+    });
+
+    async function signInUser() {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
             try {
-                await signInAnonymously(auth);
+                await signInWithCustomToken(auth, __initial_auth_token);
+                return;
             } catch (error) {
-                console.error("Anonymous sign-in failed:", error);
-                authStatus.innerHTML = `<p class="text-red-500">Authentication Failed. Please enable Anonymous sign-in in your Firebase project.</p>`;
+                console.warn('Custom token sign-in failed', error);
             }
         }
+        try {
+            await signInAnonymously(auth);
+        } catch (error) {
+            console.error("Anonymous sign-in failed:", error);
+            statusLine.innerHTML = `<span class="text-red-500">Authentication failed — enable Firebase Anonymous sign-in.</span>`;
+        }
+    }
 
-        loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const name = nameInput.value.trim();
-            const mobile = mobileInput.value.trim();
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = nameInput.value.trim();
+        const mobile = mobileInput.value.trim();
+        if (!name || !mobile || !userId) return;
+        loginButton.disabled = true;
+        loginButton.textContent = 'Saving...';
+        const userProfileRef = doc(db, 'artifacts', appId, 'users', userId);
+        try {
+            await setDoc(userProfileRef, { name, mobile, createdAt: serverTimestamp() });
+            showChatScreen(name);
+        } catch (err) {
+            console.error('Save profile error', err);
+            statusLine.textContent = 'Failed to save profile.';
+            loginButton.disabled = false;
+            loginButton.textContent = 'চ্যাট শুরু করুন';
+        }
+    });
 
-            if (name && mobile && userId) {
-                loginButton.disabled = true;
-                loginButton.textContent = 'Saving...';
-                
-                const userProfileRef = doc(db, 'artifacts', appId, 'users', userId);
-                try {
-                    await setDoc(userProfileRef, {
-                        name: name,
-                        mobile: mobile,
-                        createdAt: serverTimestamp()
-                    });
-                    showChatScreen(name);
-                } catch (error) {
-                    console.error("Error saving profile:", error);
-                    authStatus.textContent = 'Failed to save profile. Please try again.';
-                    loginButton.disabled = false;
-                    loginButton.textContent = 'চ্যাট শুরু করুন';
-                }
-            }
-        });
+    document.getElementById('guest-button').addEventListener('click', (e) => {
+        // guest: short random name
+        const name = 'Guest_' + Math.random().toString(36).substring(2,7);
+        nameInput.value = name;
+        mobileInput.value = '0000';
+        loginForm.dispatchEvent(new Event('submit', { cancelable: true }));
+    });
 
-        function showChatScreen(userName) {
-            loginContainer.classList.add('hidden');
-            appContainer.style.display = 'flex'; // Use flex to make it visible
-            
-            const shortId = `${userId.substring(0, 4)}...${userId.substring(userId.length - 4)}`;
-            userIdDisplay.textContent = `ব্যবহারকারী: ${userName} (আইডি: ${shortId})`;
-            
-            messagesCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'messages');
-            listenForMessages();
+    // --------------------
+    // Show chat UI
+    // --------------------
+    function showChatScreen(userName) {
+        loginScreen.classList.add('hidden');
+        chatScreen.classList.remove('hidden');
+        userIdDisplay.textContent = `ব্যবহারকারী: ${userName} (আইডি: ${userId.slice(0,6)}...)`;
+        messagesCollectionRef = collection(db, 'artifacts', appId, 'users', userId, 'messages');
+        listenForMessages(); // wire up Firestore listening
+        // restore local messages for instant UI
+        const local = loadLocalMessages();
+        local.forEach(m => renderMessage(m, { fromLocal: true }));
+    }
+
+    // --------------------
+    // File handling (image preview + base64)
+    // --------------------
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            selectedFileBase64 = ev.target.result.split(',')[1];
+            selectedFileMimeType = file.type;
+            const preview = document.getElementById('image-preview');
+            preview.innerHTML = `<img loading="lazy" src="${ev.target.result}" alt="Selected image" class="w-full">`;
+            preview.classList.remove('hidden');
+            pushLocalMessage({ sender:'bot', type:'info', text:'ছবিটি পাওয়া গেল — এখন জিজ্ঞাসা করুন যে কী জানতে চান।' });
+            renderMessage({ sender:'bot', type:'info', text:'ছবিটি পাওয়া গেল — এখন জিজ্ঞাসা করুন যে কী জানতে চান।' });
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // --------------------
+    // Messaging: render & Firestore listen
+    // --------------------
+    function scrollToBottom() {
+        chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' });
+    }
+
+    function renderMessage(msg, opts = {}) {
+        // msg: { sender: 'user'|'bot'|'system', text, type?, imageUrl? }
+        const wrapper = document.createElement('div');
+        wrapper.className = 'msg-anim';
+        const bubble = document.createElement('div');
+        bubble.className = 'p-3 rounded-lg max-w-[75%] break-words';
+
+        if (msg.sender === 'user') {
+            wrapper.classList.add('flex','justify-end');
+            bubble.classList.add('bg-blue-500','text-white','rounded-br-none');
+        } else if (msg.sender === 'bot') {
+            wrapper.classList.add('flex','justify-start');
+            bubble.classList.add('bg-indigo-100','text-slate-800','rounded-bl-none');
+        } else {
+            wrapper.classList.add('flex','justify-center');
+            bubble.classList.add('bg-slate-200','text-slate-700');
         }
 
-        // --- 5. EVENT LISTENERS & FILE HANDLING ---
-        fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    imagePreview.src = event.target.result;
-                    selectedFileBase64 = event.target.result.split(',')[1];
-                    selectedFileMimeType = file.type;
-                    imagePreviewContainer.classList.remove('hidden');
-                    displayMessage('bot', ' ছবিটি পেয়েছি। এখন আপনি এই ছবিটি সম্পর্কে কী জানতে চান, তা অনুগ্রহ করে লিখুন।');
-                };
-                reader.readAsDataURL(file);
-            }
-        });
+        // content
+        if (msg.type === 'image' && msg.imageUrl) {
+            const img = document.createElement('img');
+            img.loading = 'lazy';
+            img.src = msg.imageUrl;
+            img.alt = 'AI Image';
+            img.className = 'rounded-md max-w-full h-auto';
+            bubble.appendChild(img);
+        } else {
+            const p = document.createElement('p');
+            p.innerHTML = sanitizeText(msg.text || '');
+            bubble.appendChild(p);
+        }
 
-        removeImageBtn.addEventListener('click', () => {
-            fileInput.value = '';
+        wrapper.appendChild(bubble);
+        chatMessages.appendChild(wrapper);
+        if (!opts.fromLocal) pushLocalMessage(msg);
+        scrollToBottom();
+    }
+
+    function showTyping(on = true) {
+        typingIndicator.style.display = on ? 'flex' : 'none';
+    }
+
+    // Firestore real-time listener (orders by timestamp)
+    function listenForMessages() {
+        if (!messagesCollectionRef) return;
+        if (unsubscribeMessages) unsubscribeMessages();
+        const q = query(messagesCollectionRef, orderBy('timestamp'));
+        unsubscribeMessages = onSnapshot(q, (snapshot) => {
+            // Clear UI & render snapshot to avoid duplicates
+            chatMessages.innerHTML = '';
+            snapshot.docs.forEach(docSnap => {
+                const message = docSnap.data();
+                renderMessage(message);
+            });
+            // update local cache with snapshot
+            const items = snapshot.docs.map(d => d.data());
+            saveLocalMessages(items);
+            scrollToBottom();
+            statusLine.textContent = 'Messages synced.';
+        }, (err) => {
+            console.warn('Snapshot error', err);
+            statusLine.textContent = 'Offline mode: showing cached messages.';
+        });
+    }
+
+    // --------------------
+    // AI interaction functions (kept original API calls but with extra UI/tts)
+    // --------------------
+    async function getTextResponse(prompt) {
+        showTyping(true);
+        const fullPrompt = `You are 'মঞ্জুরুল', a helpful AI assistant from Bangladesh. You are a Muslim. Your responses should be in polite, standard Bengali. User's query: "${prompt}"`;
+        const geminiApiKey = "AIzaSyBTDtJhQe9Ts1Zn8gBKqMKJ6idQ-rEOUgw"; // kept
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+        const payload = { contents: [{ role: "user", parts: [{ text: fullPrompt }] }] };
+        try {
+            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) throw new Error('API request failed');
+            const result = await response.json();
+            const botResponse = result.candidates?.[0]?.content?.parts?.[0]?.text || 'দুঃখিত, কোনো উত্তর পাওয়া যায়নি।';
+            const msg = { sender:'bot', text: botResponse, timestamp: Date.now() };
+            renderMessage(msg);
+            try { await addDoc(messagesCollectionRef, { text: botResponse, sender: 'bot', timestamp: serverTimestamp() }); } catch(e){ console.warn('Could not save to firestore', e); }
+            speak(botResponse);
+        } catch (err) {
+            console.error('Error getting text response:', err);
+            renderMessage({ sender:'bot', text:'দুঃখিত, একটি প্রযুক্তিগত সমস্যা হয়েছে।' });
+        } finally {
+            showTyping(false);
+        }
+    }
+
+    async function askWithImage(prompt, imageBase64, mimeType) {
+        showTyping(true);
+        const geminiApiKey = "AIzaSyBTDtJhQe9Ts1Zn8gBKqMKJ6idQ-rEOUgw";
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+        const fullPrompt = `You are 'মঞ্জুরুল', a helpful AI assistant. Analyze the image and answer the user's question in Bengali. User's question: "${prompt}"`;
+        const payload = { contents: [{ role: "user", parts: [{ text: fullPrompt }, { inlineData: { mimeType: mimeType, data: imageBase64 } }] }] };
+        try {
+            const response = await fetch(apiUrl, { method:'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) throw new Error('Vision API failed');
+            const result = await response.json();
+            const botResponse = result.candidates?.[0]?.content?.parts?.[0]?.text || 'দুঃখিত, ছবিটি বিশ্লেষণ করা যায়নি।';
+            const msg = { sender:'bot', text: botResponse, timestamp: Date.now() };
+            renderMessage(msg);
+            try { await addDoc(messagesCollectionRef, { text: botResponse, sender:'bot', timestamp: serverTimestamp() }); } catch(e){ console.warn(e); }
+            speak(botResponse);
+        } catch (err) {
+            console.error('Image analysis error', err);
+            renderMessage({ sender:'bot', text: 'দুঃখিত, ছবিটি বিশ্লেষণ করা সম্ভব হয়নি।' });
+        } finally {
+            showTyping(false);
+        }
+    }
+
+    async function generateImage(bengaliPrompt) {
+        renderMessage({ sender:'bot', text: 'আপনার অনুরোধটি ইংরেজিতে অনুবাদ করা হচ্ছে...' });
+        showTyping(true);
+        const geminiApiKey = "AIzaSyBTDtJhQe9Ts1Zn8gBKqMKJ6idQ-rEOUgw";
+        const translationPrompt = `Translate this Bengali phrase into a concise, descriptive English phrase for an image model: "${bengaliPrompt}"`;
+        const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
+        const geminiPayload = { contents: [{ role: "user", parts: [{ text: translationPrompt }] }] };
+        let englishPrompt = '';
+        try {
+            const response = await fetch(geminiApiUrl, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(geminiPayload) });
+            if (!response.ok) throw new Error('translation failed');
+            const result = await response.json();
+            englishPrompt = result.candidates?.[0]?.content?.parts?.[0]?.text.trim() || bengaliPrompt;
+            renderMessage({ sender:'bot', text: `অনুবাদিত: "${englishPrompt}". এখন ছবি তৈরি করা হচ্ছে...` });
+        } catch (err) {
+            console.warn('Translation error', err);
+            renderMessage({ sender:'bot', text: 'দুঃখিত, অনুবাদ করা যায়নি।' });
+            showTyping(false);
+            return;
+        }
+
+        // Image generation step (API key omitted in original - keep same pattern)
+        const imagenApiKey = "";
+        const imagenApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${imagenApiKey}`;
+        const imagenPayload = { instances: [{ prompt: englishPrompt }], parameters: { sampleCount: 1 } };
+        try {
+            const res = await fetch(imagenApiUrl, { method:'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(imagenPayload) });
+            if (!res.ok) throw new Error('Image API failed');
+            const data = await res.json();
+            const b64 = data.predictions?.[0]?.bytesBase64Encoded;
+            if (b64) {
+                const imageUrl = `data:image/png;base64,${b64}`;
+                renderMessage({ sender:'bot', type:'image', imageUrl });
+                try { await addDoc(messagesCollectionRef, { text: `"${bengaliPrompt}"-এর জন্য ছবি।`, sender:'bot', type:'image', imageUrl, timestamp: serverTimestamp() }); } catch(e){ console.warn(e); }
+            } else {
+                throw new Error('No image bytes');
+            }
+        } catch (err) {
+            console.warn('Image gen error', err);
+            renderMessage({ sender:'bot', text:'দুঃখিত, ছবিটি তৈরি করা সম্ভব হয়নি।' });
+        } finally {
+            showTyping(false);
+        }
+    }
+
+    // --------------------
+    // Message send handling
+    // --------------------
+    messageForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const text = messageInput.value.trim();
+        if (!text) return;
+        // local render
+        const userMsg = { sender:'user', text, timestamp: Date.now() };
+        renderMessage(userMsg);
+        try { await addDoc(messagesCollectionRef, { text, sender:'user', timestamp: serverTimestamp() }); } catch(e){ console.warn('Could not save user message', e); }
+
+        // process attachments or commands
+        if (selectedFileBase64) {
+            await askWithImage(text, selectedFileBase64, selectedFileMimeType);
+            // clear selected
             selectedFileBase64 = null;
             selectedFileMimeType = null;
-            imagePreviewContainer.classList.add('hidden');
-        });
-
-        messageForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const messageText = messageInput.value.trim();
-            if (!messageText || !userId || !messagesCollectionRef) return;
-            messageInput.value = '';
-            
-            await addDoc(messagesCollectionRef, { text: messageText, sender: 'user', timestamp: serverTimestamp() });
-
-            if (selectedFileBase64) {
-                askWithImage(messageText, selectedFileBase64, selectedFileMimeType);
-            } else if (messageText.startsWith('/image')) {
-                const prompt = messageText.substring(6).trim();
-                if (prompt) generateImage(prompt);
-                else displayMessage('bot', 'ছবি তৈরি করতে, /image এরপর একটি বর্ণনা দিন।');
-            } else {
-                getTextResponse(messageText);
-            }
-            removeImageBtn.click();
-        });
-
-        // --- 6. FIRESTORE & CHAT LOGIC ---
-        function listenForMessages() {
-            if (!messagesCollectionRef) return;
-            if (unsubscribeMessages) unsubscribeMessages();
-
-            const q = query(messagesCollectionRef, orderBy("timestamp"));
-            unsubscribeMessages = onSnapshot(q, (snapshot) => {
-                const existingMessages = chatMessages.querySelectorAll('.dynamic-message');
-                existingMessages.forEach(msg => msg.remove());
-                snapshot.docs.forEach(doc => {
-                    const message = doc.data();
-                    if (message.type === 'image') {
-                        const img = document.createElement('img');
-                        img.src = message.imageUrl;
-                        displayMessage(message.sender, img);
-                    } else {
-                        displayMessage(message.sender, message.text);
-                    }
-                });
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            });
+            document.getElementById('image-preview').classList.add('hidden');
+            fileInput.value = '';
+        } else if (text.startsWith('/image')) {
+            const prompt = text.substring(6).trim();
+            if (prompt) await generateImage(prompt);
+            else renderMessage({ sender:'bot', text:'ছবি তৈরি করতে /image <বর্ণনা> ব্যবহার করুন।' });
+        } else {
+            await getTextResponse(text);
         }
+        messageInput.value = '';
+    });
 
-        function displayMessage(sender, content) {
-            const messageWrapper = document.createElement('div');
-            messageWrapper.className = `flex items-start gap-3 dynamic-message ${sender === 'user' ? 'justify-end' : ''}`;
-            
-            const bubble = document.createElement('div');
-            let avatarHTML;
+    // quick helpers
+    document.getElementById('clear-local').addEventListener('click', () => {
+        localStorage.removeItem(LS_MESSAGES);
+        chatMessages.innerHTML = '';
+        alert('Local cache cleared.');
+    });
 
-            if (sender === 'user') {
-                bubble.className = 'bg-blue-500 text-white p-3 rounded-lg max-w-xs md:max-w-md';
-                avatarHTML = `<div class="bg-blue-500 text-white p-2 rounded-full h-8 w-8 flex-shrink-0 flex items-center justify-center text-sm font-bold">You</div>`;
-            } else { 
-                bubble.className = 'bg-indigo-100 text-slate-800 p-3 rounded-lg max-w-xs md:max-w-md';
-                avatarHTML = `<div class="bg-indigo-500 text-white p-2 rounded-full h-8 w-8 flex-shrink-0 flex items-center justify-center text-sm font-bold">AI</div>`;
-            }
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+        try {
+            // sign out
+            await auth.signOut();
+            location.reload();
+        } catch(e) { console.warn(e); }
+    });
 
-            if (typeof content === 'string') {
-                const p = document.createElement('p');
-                p.textContent = content;
-                bubble.appendChild(p);
-            } else if (content instanceof HTMLElement) {
-                if (content.tagName === 'IMG') {
-                    bubble.className = 'p-1 bg-indigo-100 rounded-lg';
-                    content.className = 'rounded-md w-full h-auto';
-                }
-                bubble.appendChild(content);
-            }
-            
-            if (sender === 'user') {
-                messageWrapper.appendChild(bubble);
-                messageWrapper.insertAdjacentHTML('beforeend', avatarHTML);
-            } else {
-                messageWrapper.insertAdjacentHTML('afterbegin', avatarHTML);
-                messageWrapper.appendChild(bubble);
-            }
-            chatMessages.appendChild(messageWrapper);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+    // --------------------
+    // Initial sign-in attempt (same as original)
+    // --------------------
+    try { signInUser(); } catch(e) { console.warn('signInUser error', e); }
+
+    // Accessibility: keyboard shortcut to focus message input (press /)
+    window.addEventListener('keydown', (ev) => {
+        if (ev.key === '/') {
+            const active = document.activeElement;
+            if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+            ev.preventDefault();
+            messageInput.focus();
         }
+    });
 
-        // --- 7. AI RESPONSE LOGIC ---
-        async function getTextResponse(prompt) {
-            typingIndicator.classList.remove('hidden');
-            const fullPrompt = `You are 'মঞ্জুরুল', a helpful AI assistant from Bangladesh. You are a Muslim. Your responses should be in polite, standard Bengali. User's query: "${prompt}"`;
-            const geminiApiKey = "AIzaSyBTDtJhQe9Ts1Zn8gBKqMKJ6idQ-rEOUgw"; 
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
-            const payload = { contents: [{ role: "user", parts: [{ text: fullPrompt }] }] };
-            try {
-                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                if (!response.ok) throw new Error(`API request failed.`);
-                const result = await response.json();
-                const botResponse = result.candidates[0].content.parts[0].text;
-                await addDoc(messagesCollectionRef, { text: botResponse, sender: 'bot', timestamp: serverTimestamp() });
-            } catch (error) {
-                console.error("Error getting text response:", error);
-                displayMessage('bot', 'দুঃখিত, একটি প্রযুক্তিগত সমস্যা হয়েছে।');
-            } finally {
-                typingIndicator.classList.add('hidden');
-            }
-        }
-        
-        async function askWithImage(prompt, imageBase64, mimeType) {
-            typingIndicator.classList.remove('hidden');
-            const geminiApiKey = "AIzaSyBTDtJhQe9Ts1Zn8gBKqMKJ6idQ-rEOUgw"; 
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
-            const fullPrompt = `You are 'মঞ্জুরুল', a helpful AI assistant. Analyze the image and answer the user's question in Bengali. User's question: "${prompt}"`;
-            const payload = { contents: [{ role: "user", parts: [{ text: fullPrompt }, { inlineData: { mimeType: mimeType, data: imageBase64 } }] }] };
-            try {
-                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                if (!response.ok) throw new Error(`Vision API request failed.`);
-                const result = await response.json();
-                const botResponse = result.candidates[0].content.parts[0].text;
-                await addDoc(messagesCollectionRef, { text: botResponse, sender: 'bot', timestamp: serverTimestamp() });
-            } catch (error) {
-                console.error("Error with image query:", error);
-                displayMessage('bot', 'দুঃখিত, ছবিটি বিশ্লেষণ করা সম্ভব হয়নি।');
-            } finally {
-                typingIndicator.classList.add('hidden');
-            }
-        }
-
-        async function generateImage(bengaliPrompt) {
-            displayMessage('bot', `আপনার অনুরোধটি ইংরেজিতে অনুবাদ করা হচ্ছে...`);
-            typingIndicator.classList.remove('hidden');
-            const geminiApiKey = "AIzaSyBTDtJhQe9Ts1Zn8gBKqMKJ6idQ-rEOUgw";
-            const translationPrompt = `Translate this Bengali phrase into a concise, descriptive English phrase for an image model: "${bengaliPrompt}"`;
-            const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`;
-            const geminiPayload = { contents: [{ role: "user", parts: [{ text: translationPrompt }] }] };
-            let englishPrompt;
-            try {
-                const response = await fetch(geminiApiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(geminiPayload) });
-                if (!response.ok) throw new Error('Translation failed');
-                const result = await response.json();
-                englishPrompt = result.candidates[0].content.parts[0].text.trim();
-                displayMessage('bot', `অনুবাদিত বর্ণনা: "${englishPrompt}". এখন ছবিটি তৈরি করা হচ্ছে...`);
-            } catch (error) {
-                console.error("Translation error:", error);
-                displayMessage('bot', 'দুঃখিত, আপনার বর্ণনাটি অনুবাদ করা সম্ভব হয়নি।');
-                typingIndicator.classList.add('hidden');
-                return;
-            }
-
-            const imagenApiKey = "";
-            const imagenApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${imagenApiKey}`;
-            const imagenPayload = { instances: [{ prompt: englishPrompt }], parameters: { "sampleCount": 1 } };
-            try {
-                const response = await fetch(imagenApiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(imagenPayload) });
-                if (!response.ok) throw new Error(`Image API request failed.`);
-                const result = await response.json();
-                if (result.predictions && result.predictions[0]?.bytesBase64Encoded) {
-                    const imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
-                    const img = document.createElement('img');
-                    img.src = imageUrl;
-                    displayMessage('bot', img);
-                    await addDoc(messagesCollectionRef, { text: `"${bengaliPrompt}"-এর জন্য একটি ছবি।`, sender: 'bot', type: 'image', imageUrl: imageUrl, timestamp: serverTimestamp() });
-                } else { throw new Error("No image data in response."); }
-            } catch (error) {
-                console.error("Error generating image:", error);
-                displayMessage('bot', 'দুঃখিত, ছবিটি তৈরি করা সম্ভব হয়নি।');
-            } finally {
-                typingIndicator.classList.add('hidden');
-            }
-        }
-
-        // Initial sign-in attempt
-        signInUser();
     </script>
 </body>
 </html>
-
